@@ -161,7 +161,7 @@ function ready() {
             const acceleration = event.accelerationIncludingGravity;
             if (!acceleration) return;
             
-            // 检测所有方向的加速度，因为不同设备坐标系可能不同
+            // 检测所有方向的加速度
             const x = acceleration.x || 0;
             const y = acceleration.y || 0;
             const z = acceleration.z || 0;
@@ -169,55 +169,34 @@ function ready() {
             // 计算总加速度大小（去除重力影响）
             const totalAccel = Math.sqrt(x*x + y*y + z*z) - 9.8;
             
-            // 显示调试信息
-            debugDisplay.text = `加速度: ${totalAccel.toFixed(2)}\nx:${x.toFixed(1)} y:${y.toFixed(1)} z:${z.toFixed(1)}`;
+            // 显示调试信息和当前状态
+            debugDisplay.text = `加速度: ${totalAccel.toFixed(2)}\n状态: ${isLowPosition ? "下蹲中" : isHighPosition ? "站立中" : "准备"}`;
             
-            // 使用总加速度来检测动作
-            if (totalAccel < -2 && !isLowPosition) {
+            // 检测下蹲动作
+            if (totalAccel < -1.5 && !isLowPosition) {
                 isLowPosition = true;
                 isHighPosition = false;
                 console.log("下蹲位置", totalAccel);
                 
-                // // 添加视觉反馈
-                // new Circle({
-                //     radius: 50,
-                //     color: "#FFEB3B",
-                //     alpha: 0.5
-                // }).center(container).animate({
-                //     props: {alpha:0, scale:1.2},
-                //     time: 300,
-                //     onComplete: function(tween) {
-                //         tween.target.removeFrom();
-                //     }
-                // });
             }
             
-            // 检测站立位置并计数
-            if (totalAccel > 2 && isLowPosition && !isHighPosition) {
+            // 检测站立动作并计数
+            if (totalAccel > 1.5 && isLowPosition && !isHighPosition) {
                 isHighPosition = true;
                 isLowPosition = false;
                 repCount++;
                 repCountDisplay.text = `次数: ${repCount}`;
                 console.log("完成一次硬拉:", repCount, totalAccel);
-                
-                // // 添加视觉反馈
-                // new Circle({
-                //     radius: 120,
-                //     color: "#4CAF50",
-                //     alpha: 0.5
-                // }).center(container).animate({
-                //     props: {alpha:0, scale:1.5},
-                //     time: 500,
-                //     onComplete: function(tween) {
-                //         tween.target.removeFrom();
-                //     }
-                // });
             }
             
-            // 重置状态，为下一次动作做准备
-            if (Math.abs(totalAccel) < 0.5) {
-                isLowPosition = false;
-                isHighPosition = false;
+            // 重置状态，准备下一次动作
+            if (Math.abs(totalAccel) < 0.3) {
+                // 只有当用户已经完成一次动作后才重置
+                if (isHighPosition) {
+                    isLowPosition = false;
+                    isHighPosition = false;
+                    console.log("重置状态，准备下一次");
+                }
             }
             
             S.update();
