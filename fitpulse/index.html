@@ -178,18 +178,18 @@ function ready() {
                 isHighPosition = false;
                 console.log("下蹲位置", totalAccel);
                 
-                // 添加视觉反馈
-                new Circle({
-                    radius: 50,
-                    color: "#FFEB3B",
-                    alpha: 0.5
-                }).center(container).animate({
-                    props: {alpha:0, scale:1.2},
-                    time: 300,
-                    onComplete: function(tween) {
-                        tween.target.removeFrom();
-                    }
-                });
+                // // 添加视觉反馈
+                // new Circle({
+                //     radius: 50,
+                //     color: "#FFEB3B",
+                //     alpha: 0.5
+                // }).center(container).animate({
+                //     props: {alpha:0, scale:1.2},
+                //     time: 300,
+                //     onComplete: function(tween) {
+                //         tween.target.removeFrom();
+                //     }
+                // });
             }
             
             // 检测站立位置并计数
@@ -200,18 +200,18 @@ function ready() {
                 repCountDisplay.text = `次数: ${repCount}`;
                 console.log("完成一次硬拉:", repCount, totalAccel);
                 
-                // 添加视觉反馈
-                new Circle({
-                    radius: 120,
-                    color: "#4CAF50",
-                    alpha: 0.5
-                }).center(container).animate({
-                    props: {alpha:0, scale:1.5},
-                    time: 500,
-                    onComplete: function(tween) {
-                        tween.target.removeFrom();
-                    }
-                });
+                // // 添加视觉反馈
+                // new Circle({
+                //     radius: 120,
+                //     color: "#4CAF50",
+                //     alpha: 0.5
+                // }).center(container).animate({
+                //     props: {alpha:0, scale:1.5},
+                //     time: 500,
+                //     onComplete: function(tween) {
+                //         tween.target.removeFrom();
+                //     }
+                // });
             }
             
             // 重置状态，为下一次动作做准备
