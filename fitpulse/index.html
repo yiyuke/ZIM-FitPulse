@@ -79,30 +79,35 @@ function ready() {
     
     // Add tilt display
     const tiltDisplay = new Label({
-        text: "Tilt: 0°",
+        text: "Deviation: 0°",
         size: 30,
         color: red,
     }).center(container);
 
     function setupTiltDetection() {
         window.addEventListener("deviceorientation", (event) => {
-            const beta = Math.abs(event.beta);
-            tiltDisplay.text = `Tilt: ${beta.toFixed(1)}°`;
+            const beta = Math.abs(event.beta);  // front-to-back tilt
+            const gamma = Math.abs(event.gamma); // left-to-right tilt
             
-            // Update ring color and size based on tilt
-            if (beta > 25) {
-                ring.borderColor = "#ff0000";
+            // Calculate total deviation from vertical
+            const totalDeviation = Math.sqrt(gamma * gamma + beta * beta);
+            
+            tiltDisplay.text = `Deviation: ${totalDeviation.toFixed(1)}°`;
+            
+            // Update ring color and size based on total deviation
+            if (totalDeviation > 15) {
+                ring.borderColor = "#ff0000"; // Red for bad form
                 ring.scaleX = ring.scaleY = 0.7;
-            } else if (beta > 20) {
-                ring.borderColor = "#ff9800";
+            } else if (totalDeviation > 10) {
+                ring.borderColor = "#ff9800"; // Orange for warning
                 ring.scaleX = ring.scaleY = 0.85;
             } else {
-                ring.borderColor = "#4CAF50";
+                ring.borderColor = "#4CAF50"; // Green for good form
                 ring.scaleX = ring.scaleY = 1;
             }
 
             // Draw progress arc
-            const progress = Math.min(beta / 25, 1);
+            const progress = Math.min(totalDeviation / 15, 1);
             progressRing.graphics.clear()
                 .setStrokeStyle(5)
                 .beginStroke(ring.borderColor)
