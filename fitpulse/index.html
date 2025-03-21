@@ -86,38 +86,56 @@ function ready() {
 
     function setupTiltDetection() {
         console.log("Setting up tilt detection for both axes");
+        
+        // 添加计数相关变量
+        let repCount = 0;
+        let isLowPosition = false;
+        let isHighPosition = false;
+        const LOW_THRESHOLD = -5;  // 下蹲阈值
+        const HIGH_THRESHOLD = 5;  // 站立阈值
+        
+        // 添加计数显示
+        const repCountDisplay = new Label({
+            text: "次数: 0",
+            size: 30,
+            color: white,
+            backgroundColor: "#333333",
+            padding: 10,
+            corner: 5
+        }).pos(20, 20, LEFT, TOP, container);
+        
+        // 监听设备方向变化
         window.addEventListener("deviceorientation", (event) => {
-            // Get rotation values (beta is front-back tilt, gamma is left-right tilt)
-            const beta = event.beta || 0;  // x-axis rotation (-180 to 180)
-            const gamma = event.gamma || 0; // y-axis rotation (-90 to 90)
+            // 获取旋转值
+            const beta = event.beta || 0;  // x轴旋转 (-180 到 180)
+            const gamma = event.gamma || 0; // y轴旋转 (-90 到 90)
             
-            // Calculate absolute values for magnitude
+            // 计算绝对值
             const absBeta = Math.abs(beta);
             const absGamma = Math.abs(gamma);
             
-            // Calculate total deviation from horizontal plane
-            // Using Pythagorean theorem to combine both axes
+            // 计算总体倾斜度
             const totalDeviation = Math.sqrt(absBeta * absBeta + absGamma * absGamma);
             
-            // Show total deviation and individual components
+            // 显示倾斜度
             tiltDisplay.text = `倾斜: ${totalDeviation.toFixed(1)}°\n前后: ${absBeta.toFixed(1)}°, 左右: ${absGamma.toFixed(1)}°`;
             
-            // Update ring color and size based on total deviation
+            // 更新环的颜色和大小
             if (totalDeviation > 20) {
-                ring.borderColor = "#ff0000"; // Red for severe tilt
+                ring.borderColor = "#ff0000"; // 红色表示严重倾斜
                 ring.scaleX = ring.scaleY = 0.7;
             } else if (totalDeviation > 10) {
-                ring.borderColor = "#ff9800"; // Orange for moderate tilt
+                ring.borderColor = "#ff9800"; // 橙色表示中度倾斜
                 ring.scaleX = ring.scaleY = 0.85;
             } else if (totalDeviation > 5) {
-                ring.borderColor = "#FFEB3B"; // Yellow for slight tilt
+                ring.borderColor = "#FFEB3B"; // 黄色表示轻微倾斜
                 ring.scaleX = ring.scaleY = 0.95;
             } else {
-                ring.borderColor = "#4CAF50"; // Green for level
+                ring.borderColor = "#4CAF50"; // 绿色表示水平
                 ring.scaleX = ring.scaleY = 1;
             }
 
-            // Draw progress arc - full circle when at max threshold
+            // 绘制进度环
             const progress = Math.min(totalDeviation / 20, 1);
             progressRing.graphics.clear()
                 .setStrokeStyle(5)
@@ -126,26 +144,76 @@ function ready() {
             
             S.update();
         });
+        
+        // 监听设备加速度变化来检测上下运动
+        window.addEventListener("devicemotion", (event) => {
+            // 获取加速度数据（包括重力）
+            const acceleration = event.accelerationIncludingGravity;
+            if (!acceleration) return;
+            
+            // 垂直方向的加速度（y轴）
+            const verticalAccel = acceleration.y;
+            
+            // 检测下蹲位置
+            if (verticalAccel < LOW_THRESHOLD && !isLowPosition) {
+                isLowPosition = true;
+                isHighPosition = false;
+                console.log("下蹲位置");
+            }
+            
+            // 检测站立位置并计数
+            if (verticalAccel > HIGH_THRESHOLD && isLowPosition && !isHighPosition) {
+                isHighPosition = true;
+                isLowPosition = false;
+                repCount++;
+                repCountDisplay.text = `次数: ${repCount}`;
+                console.log("完成一次硬拉:", repCount);
+                
+                // 添加视觉反馈
+                new Circle({
+                    radius: 120,
+                    color: "#4CAF50",
+                    alpha: 0.5
+                }).center(container).animate({
+                    props: {alpha:0, scale:1.5},
+                    time: 500,
+                    onComplete: function(tween) {
+                        tween.target.removeFrom();
+                    }
+                });
+                
+                S.update();
+            }
+        });
     }
 
-    // Handle permissions
+    // 处理权限
     if (typeof DeviceOrientationEvent !== 'undefined' && 
         typeof DeviceOrientationEvent.requestPermission === 'function') {
         
-        // Add permission button
+        // 添加权限按钮
         const permissionButton = new Button({
             width: 200,
             height: 50,
-            label: "Enable Tilt",
+            label: "开始训练",
             backgroundColor: blue,
             rollBackgroundColor: "#1976D2",
             corner: 10
-        }).center(container);  // Using center() like other elements
+        }).center(container);
 
         permissionButton.on("click", async () => {
             try {
-                const permission = await DeviceOrientationEvent.requestPermission();
-                if (permission === "granted") {
+                // 请求设备方向权限
+                const orientationPermission = await DeviceOrientationEvent.requestPermission();
+                
+                // 请求设备运动权限（如果可用）
+                let motionPermission = "granted";
+                if (typeof DeviceMotionEvent !== 'undefined' && 
+                    typeof DeviceMotionEvent.requestPermission === 'function') {
+                    motionPermission = await DeviceMotionEvent.requestPermission();
+                }
+                
+                if (orientationPermission === "granted" && motionPermission === "granted") {
                     setupTiltDetection();
                     permissionButton.removeFrom();
                 }
