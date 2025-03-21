@@ -85,24 +85,29 @@ function ready() {
     }).center(container)
 
     function setupTiltDetection() {
-        console.log("Setting up tilt detection for both axes");
+        console.log("Setting up improved movement detection");
         
         // 添加计数相关变量
         let repCount = 0;
-        let isLowPosition = false;
-        let isHighPosition = false;
-        const LOW_THRESHOLD = -3;  // 降低下蹲阈值，使其更容易触发
-        const HIGH_THRESHOLD = 3;  // 降低站立阈值，使其更容易触发
+        let lastPositionY = 0;
+        let highestPoint = 0;
+        let lowestPoint = 0;
+        let isMovingDown = false;
+        let isMovingUp = false;
+        let inProgress = false;
+        
+        // 定义移动阈值（单位：厘米）
+        const MOVEMENT_THRESHOLD = 20; // 需要上下移动至少20厘米才计数
         
         // 添加调试显示
         const debugDisplay = new Label({
-            text: "加速度: 0",
+            text: "位置: 0cm",
             size: 20,
             color: white,
             backgroundColor: "#333333",
             padding: 10,
             corner: 5
-        }).pos(0, -120, LEFT, TOP, container);
+        }).pos(0, -140, LEFT, TOP, container);
         
         // 添加计数显示
         const repCountDisplay = new Label({
@@ -112,7 +117,22 @@ function ready() {
             backgroundColor: "#333333",
             padding: 10,
             corner: 5
-        }).pos(0, 60, LEFT, TOP, container);
+        }).pos(0, 80, LEFT, TOP, container);
+        
+        // 添加状态显示
+        const statusDisplay = new Label({
+            text: "状态: 准备",
+            size: 20,
+            color: white,
+            backgroundColor: "#333333",
+            padding: 10,
+            corner: 5
+        }).pos(0, 120, LEFT, TOP, container);
+        
+        // 使用位置积分来跟踪垂直移动
+        let positionY = 0;
+        let velocityY = 0;
+        let lastTime = Date.now();
         
         // 监听设备方向变化
         window.addEventListener("deviceorientation", (event) => {
@@ -155,50 +175,112 @@ function ready() {
             S.update();
         });
         
-        // 监听设备加速度变化来检测上下运动
+        // 监听设备加速度变化来估算位置
         window.addEventListener("devicemotion", (event) => {
+            const now = Date.now();
+            const dt = (now - lastTime) / 1000; // 转换为秒
+            lastTime = now;
+            
+            if (dt <= 0 || dt > 0.2) return; // 忽略不合理的时间间隔
+            
             // 获取加速度数据（包括重力）
             const acceleration = event.accelerationIncludingGravity;
             if (!acceleration) return;
             
-            // 检测所有方向的加速度
+            // 获取垂直方向加速度（通常是y轴，但可能因设备方向而异）
+            // 尝试所有轴以找到最适合垂直方向的
             const x = acceleration.x || 0;
             const y = acceleration.y || 0;
             const z = acceleration.z || 0;
             
-            // 计算总加速度大小（去除重力影响）
-            const totalAccel = Math.sqrt(x*x + y*y + z*z) - 9.8;
+            // 使用最大的加速度分量作为垂直方向
+            // 这是一个简化的方法，实际应用中可能需要更复杂的方向检测
+            const verticalAccel = Math.max(Math.abs(x), Math.abs(y), Math.abs(z)) * 
+                                 (Math.abs(y) === Math.max(Math.abs(x), Math.abs(y), Math.abs(z)) ? 
+                                  Math.sign(y) : Math.sign(z));
             
-            // 显示调试信息和当前状态
-            debugDisplay.text = `加速度: ${totalAccel.toFixed(2)}\n状态: ${isLowPosition ? "下蹲中" : isHighPosition ? "站立中" : "准备"}`;
+            // 应用低通滤波器减少噪声
+            const filteredAccel = verticalAccel - 9.8; // 减去重力加速度
             
-            // 检测下蹲动作
-            if (totalAccel < -1.5 && !isLowPosition) {
-                isLowPosition = true;
-                isHighPosition = false;
-                console.log("下蹲位置", totalAccel);
+            // 积分加速度得到速度
+            velocityY += filteredAccel * dt;
+            
+            // 应用阻尼以防止漂移
+            velocityY *= 0.95;
+            
+            // 积分速度得到位置
+            positionY += velocityY * dt * 100; // 转换为厘米
+            
+            // 检测动作
+            if (!inProgress && Math.abs(positionY - lastPositionY) > 5) {
+                // 开始新的动作
+                inProgress = true;
+                highestPoint = positionY;
+                lowestPoint = positionY;
+                statusDisplay.text = "状态: 开始动作";
+            }
+            
+            if (inProgress) {
+                // 更新最高点和最低点
+                if (positionY > highestPoint) highestPoint = positionY;
+                if (positionY < lowestPoint) lowestPoint = positionY;
                 
-            }
-            
-            // 检测站立动作并计数
-            if (totalAccel > 1.5 && isLowPosition && !isHighPosition) {
-                isHighPosition = true;
-                isLowPosition = false;
-                repCount++;
-                repCountDisplay.text = `次数: ${repCount}`;
-                console.log("完成一次硬拉:", repCount, totalAccel);
-            }
-            
-            // 重置状态，准备下一次动作
-            if (Math.abs(totalAccel) < 0.3) {
-                // 只有当用户已经完成一次动作后才重置
-                if (isHighPosition) {
-                    isLowPosition = false;
-                    isHighPosition = false;
-                    console.log("重置状态，准备下一次");
+                // 检测下蹲
+                if (positionY < lastPositionY - 2) {
+                    isMovingDown = true;
+                    isMovingUp = false;
+                    statusDisplay.text = "状态: 下蹲中";
+                }
+                
+                // 检测站立
+                if (positionY > lastPositionY + 2) {
+                    isMovingUp = true;
+                    isMovingDown = false;
+                    statusDisplay.text = "状态: 站立中";
+                }
+                
+                // 检测完整动作
+                const totalMovement = Math.abs(highestPoint - lowestPoint);
+                
+                // 当动作停止且移动距离足够大时计数
+                if (Math.abs(velocityY) < 5 && totalMovement > MOVEMENT_THRESHOLD && isMovingUp) {
+                    repCount++;
+                    repCountDisplay.text = `次数: ${repCount}`;
+                    console.log(`完成一次硬拉: ${repCount}, 移动距离: ${totalMovement.toFixed(1)}cm`);
+                    
+                    // 添加视觉反馈
+                    // new Circle({
+                    //     radius: 120,
+                    //     color: "#4CAF50",
+                    //     alpha: 0.5
+                    // }).center(container).animate({
+                    //     props: {alpha:0, scale:1.5},
+                    //     time: 500,
+                    //     onComplete: function(tween) {
+                    //         tween.target.removeFrom();
+                    //     }
+                    // });
+                    
+                    // 重置状态
+                    inProgress = false;
+                    isMovingDown = false;
+                    isMovingUp = false;
+                    statusDisplay.text = "状态: 完成";
+                    
+                    // 延迟后重置位置跟踪，避免连续计数
+                    setTimeout(() => {
+                        positionY = 0;
+                        velocityY = 0;
+                        lastPositionY = 0;
+                        statusDisplay.text = "状态: 准备";
+                    }, 1000);
                 }
             }
             
+            // 更新显示
+            debugDisplay.text = `位置: ${positionY.toFixed(1)}cm\n速度: ${velocityY.toFixed(1)}cm/s\n移动: ${Math.abs(highestPoint - lowestPoint).toFixed(1)}cm`;
+            
+            lastPositionY = positionY;
             S.update();
         });
     }
