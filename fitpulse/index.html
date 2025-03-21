@@ -90,18 +90,14 @@ function ready() {
         // 添加计数相关变量
         let repCount = 0;
         
-        // 创建合并了计数显示的按钮
+        // 创建合并了计数显示的按钮 - 使用基本参数
         const countButton = new Button({
             label: "次数: 0",
             width: 150,
             height: 60,
             backgroundColor: "#4CAF50",
             rollBackgroundColor: "#388E3C",
-            corner: 10,
-            shadowColor: "rgba(0,0,0,0.3)",
-            shadowBlur: 5,
-            labelSize: 24,
-            labelColor: white
+            corner: 10
         }).pos(0, -150, CENTER, CENTER, container);
         
         // 按钮点击事件
@@ -123,15 +119,14 @@ function ready() {
         // 创建一个独立的容器来放置重置按钮，避免事件冒泡
         const resetContainer = new Container().addTo(container);
         
-        // 添加重置按钮
+        // 添加重置按钮 - 使用基本参数
         const resetButton = new Button({
             label: "重置",
             width: 80,
             height: 40,
             backgroundColor: "#F44336",
             rollBackgroundColor: "#D32F2F",
-            corner: 8,
-            labelSize: 18
+            corner: 8
         }).pos(80, -150, RIGHT, CENTER, resetContainer);
         
         // 重置按钮点击事件
