@@ -82,7 +82,7 @@ function ready() {
         text: "Deviation: 0°",
         size: 20,
         color: red,
-    }).centerReg(container)
+    }).center(container)
 
     function setupTiltDetection() {
         console.log("Setting up tilt detection for both axes");
@@ -100,7 +100,7 @@ function ready() {
             const totalDeviation = Math.sqrt(absBeta * absBeta + absGamma * absGamma);
             
             // Show total deviation and individual components
-            tiltDisplay.text = `倾斜: ${totalDeviation.toFixed(1)}° (前后:${absBeta.toFixed(1)}°, 左右:${absGamma.toFixed(1)}°)`;
+            tiltDisplay.text = `倾斜: ${totalDeviation.toFixed(1)}°\n前后: ${absBeta.toFixed(1)}°, 左右: ${absGamma.toFixed(1)}°`;
             
             // Update ring color and size based on total deviation
             if (totalDeviation > 20) {
