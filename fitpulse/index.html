@@ -91,8 +91,18 @@ function ready() {
         let repCount = 0;
         let isLowPosition = false;
         let isHighPosition = false;
-        const LOW_THRESHOLD = -5;  // 下蹲阈值
-        const HIGH_THRESHOLD = 5;  // 站立阈值
+        const LOW_THRESHOLD = -3;  // 降低下蹲阈值，使其更容易触发
+        const HIGH_THRESHOLD = 3;  // 降低站立阈值，使其更容易触发
+        
+        // 添加调试显示
+        const debugDisplay = new Label({
+            text: "加速度: 0",
+            size: 20,
+            color: white,
+            backgroundColor: "#333333",
+            padding: 10,
+            corner: 5
+        }).pos(0, -120, LEFT, TOP, container);
         
         // 添加计数显示
         const repCountDisplay = new Label({
@@ -102,7 +112,7 @@ function ready() {
             backgroundColor: "#333333",
             padding: 10,
             corner: 5
-        }).pos(20, 20, LEFT, TOP, container);
+        }).pos(0, 60, LEFT, TOP, container);
         
         // 监听设备方向变化
         window.addEventListener("deviceorientation", (event) => {
@@ -151,23 +161,44 @@ function ready() {
             const acceleration = event.accelerationIncludingGravity;
             if (!acceleration) return;
             
-            // 垂直方向的加速度（y轴）
-            const verticalAccel = acceleration.y;
+            // 检测所有方向的加速度，因为不同设备坐标系可能不同
+            const x = acceleration.x || 0;
+            const y = acceleration.y || 0;
+            const z = acceleration.z || 0;
             
-            // 检测下蹲位置
-            if (verticalAccel < LOW_THRESHOLD && !isLowPosition) {
+            // 计算总加速度大小（去除重力影响）
+            const totalAccel = Math.sqrt(x*x + y*y + z*z) - 9.8;
+            
+            // 显示调试信息
+            debugDisplay.text = `加速度: ${totalAccel.toFixed(2)}\nx:${x.toFixed(1)} y:${y.toFixed(1)} z:${z.toFixed(1)}`;
+            
+            // 使用总加速度来检测动作
+            if (totalAccel < -2 && !isLowPosition) {
                 isLowPosition = true;
                 isHighPosition = false;
-                console.log("下蹲位置");
+                console.log("下蹲位置", totalAccel);
+                
+                // 添加视觉反馈
+                new Circle({
+                    radius: 50,
+                    color: "#FFEB3B",
+                    alpha: 0.5
+                }).center(container).animate({
+                    props: {alpha:0, scale:1.2},
+                    time: 300,
+                    onComplete: function(tween) {
+                        tween.target.removeFrom();
+                    }
+                });
             }
             
             // 检测站立位置并计数
-            if (verticalAccel > HIGH_THRESHOLD && isLowPosition && !isHighPosition) {
+            if (totalAccel > 2 && isLowPosition && !isHighPosition) {
                 isHighPosition = true;
                 isLowPosition = false;
                 repCount++;
                 repCountDisplay.text = `次数: ${repCount}`;
-                console.log("完成一次硬拉:", repCount);
+                console.log("完成一次硬拉:", repCount, totalAccel);
                 
                 // 添加视觉反馈
                 new Circle({
@@ -181,9 +212,15 @@ function ready() {
                         tween.target.removeFrom();
                     }
                 });
-                
-                S.update();
             }
+            
+            // 重置状态，为下一次动作做准备
+            if (Math.abs(totalAccel) < 0.5) {
+                isLowPosition = false;
+                isHighPosition = false;
+            }
+            
+            S.update();
         });
     }
 
