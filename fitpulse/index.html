@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>FitPulse</title>
+
+<!--
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ZIM Zapps
+Progressive Web App (PWA) tool output from
+https://zimjs.com/zapps/tool.html 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-->
+
+<!-- ZIM PWA STEP 1 - MANIFEST -->
+<link rel="manifest" href="manifest.json">
+
+<!-- ZIM PWA STEP 2 - META -->
+<meta name="apple-mobile-web-app-title" content="FitPulse">
+<meta name="theme-color" content="#333333">
+<meta name="msapplication-TileColor" content="#333333">
+
+<meta name="viewport" content="width=device-width, user-scalable=no">
+<link rel="apple-touch-icon" href="icons/icon_152.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="msapplication-TileImage" content="icons/icon_144.png">
+
+<!-- should have faveicons - see link below -->
+<!-- see https://www.favicon-generator.org/ -->
+
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="msapplication-starturl" content="./">
+
+<!-- ZIM PWA STEP 3 - SERVICE WORKER -->
+<script>
+	window.addEventListener("DOMContentLoaded", function () {
+		if (location.protocol === "https:" && "serviceWorker" in navigator) navigator.serviceWorker.register("./serviceworker.js");
+	});
+</script>
+
+
+<script src="libraries/createjs.js"></script>
+<script src="libraries/zim_min.js"></script>
+
+<!-- zimjs.com - JavaScript Canvas Framework -->
+<script type="module">
+const assets = "icon.png";
+const path = "assets/"
+
+new Frame(FULL, null, null, light, dark, ready, assets, path);
+function ready() {
+
+	// ZIM PWA STEP 4 - ADD TO HOME SCREEN (A2HS)
+	// NOTE: new PWA() works with ZIM Cat 04 or beyond
+	// Message shows if only if running from mobile Browser
+	// See https://zimjs.com/docs.html?item=PWA for more options
+	// Will want to move this to bottom of app code
+
+	new PWA();
+
+    const container = new Container().center();
+
+    const logo = new Pic("icon.png")
+        .scaleTo(S, 30, 50)
+        .center(container)
+        .drag();
+    // Create balance indicator ring
+    const ring = new Circle({
+        radius: 100,
+        borderColor: purple,
+        borderWidth: 10,
+        color: "transparent"
+    }).center(container);
+
+    // Add inner progress ring
+    const progressRing = new Shape().addTo(container);
+    
+    // Add tilt display
+    const tiltDisplay = new Label({
+        text: "Tilt: 0°",
+        size: 30,
+        color: red,
+    }).center(container);
+
+    function setupTiltDetection() {
+        window.addEventListener("deviceorientation", (event) => {
+            const beta = Math.abs(event.beta);
+            tiltDisplay.text = `Tilt: ${beta.toFixed(1)}°`;
+            
+            // Update ring color and size based on tilt
+            if (beta > 25) {
+                ring.borderColor = "#ff0000";
+                ring.scaleX = ring.scaleY = 0.7;
+            } else if (beta > 20) {
+                ring.borderColor = "#ff9800";
+                ring.scaleX = ring.scaleY = 0.85;
+            } else {
+                ring.borderColor = "#4CAF50";
+                ring.scaleX = ring.scaleY = 1;
+            }
+
+            // Draw progress arc
+            const progress = Math.min(beta / 25, 1);
+            progressRing.graphics.clear()
+                .setStrokeStyle(5)
+                .beginStroke(ring.borderColor)
+                .arc(0, 0, 80, 0, Math.PI * 2 * progress);
+            
+            S.update();
+        });
+    }
+
+    // Handle permissions
+    if (typeof DeviceOrientationEvent !== 'undefined' && 
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+        
+        // Add permission button
+        const permissionButton = new Button({
+            width: 200,
+            height: 50,
+            label: "Enable Tilt",
+            backgroundColor: blue,
+            rollBackgroundColor: "#1976D2",
+            corner: 10
+        }).center(container);  // Using center() like other elements
+
+        permissionButton.on("click", async () => {
+            try {
+                const permission = await DeviceOrientationEvent.requestPermission();
+                if (permission === "granted") {
+                    setupTiltDetection();
+                    permissionButton.removeFrom();
+                }
+            } catch (error) {
+                console.error("Error requesting permission:", error);
+            }
+        });
+    } else {
+        setupTiltDetection();
+    }
+
+    S.update();
+}
+</script>
+
+</head>
+<body></body>
+</html>
