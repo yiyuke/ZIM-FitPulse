@@ -80,9 +80,9 @@ function ready() {
     // Add tilt display
     const tiltDisplay = new Label({
         text: "Deviation: 0°",
-        size: 30,
+        size: 20,
         color: red,
-    }).center(container);
+    }).centerReg(container)
 
     function setupTiltDetection() {
         console.log("Setting up tilt detection for both axes");
