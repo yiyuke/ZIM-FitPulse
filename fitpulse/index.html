@@ -51,62 +51,260 @@ const path = "assets/"
 
 new Frame(FULL, null, null, light, dark, ready, assets, path);
 function ready() {
+    new PWA();
 
-	// ZIM PWA STEP 4 - ADD TO HOME SCREEN (A2HS)
-	// NOTE: new PWA() works with ZIM Cat 04 or beyond
-	// Message shows if only if running from mobile Browser
-	// See https://zimjs.com/docs.html?item=PWA for more options
-	// Will want to move this to bottom of app code
+    // Create app state
+    const appState = {
+        screen: "home", // home, game, results
+        mode: "solo",   // solo, multiplayer
+        duration: 30,   // 30, 60
+        playerName: "Player1",
+        repCount: 0,
+        warnings: 0,
+        avgTilt: 0,
+        tiltReadings: []
+    };
 
-	new PWA();
-
-    const container = new Container().center();
-
-    // const logo = new Pic("icon.png")
-    //     .scaleTo(S, 30, 50)
-    //     .center(container)
-    //     .drag();
-    // Create balance indicator ring
-    const ring = new Circle({
-        radius: 100,
-        borderColor: purple,
-        borderWidth: 10,
-        color: "transparent"
-    }).center(container);
-
-    // Add inner progress ring
-    const progressRing = new Shape().addTo(container);
+    // Main container for all screens
+    //const mainContainer = new Container().center();
     
-    // Add tilt display
-    const tiltDisplay = new Label({
-        text: "Deviation: 0°",
+    // Create screens
+    const homeScreen = new Container().center();
+    const gameScreen = new Container().center().vis(false);
+    const resultsScreen = new Container().center().vis(false);
+    
+    // HOME SCREEN
+    const logo = new Label({
+        text: "FitPulse",
+        size: 50,
+        color: blue,
+        bold: true
+    }).loc(-92, -270, homeScreen);
+    
+    // Mode selection
+    new Label({
+        text: "Mode Selection",
+        size: 24,
+        color: dark
+    }).loc(-92, -90, homeScreen);
+    
+    const modeRadio = new RadioButtons({
         size: 20,
-        color: red,
-    }).center(container)
-
+        buttons: ["Solo Challenge", "Multiplayer (1-4)"],
+        vertical:false,
+        selectedIndex: 0,
+        spacing: 10,
+        color: blue,
+        backgroundColor: light
+    }).loc(-92, -50, homeScreen)
+    .on("change", function() {
+        appState.mode = this.selectedIndex == 0 ? "solo" : "multiplayer";
+    });
+    
+    // Duration selection
+    new Label({
+        text: "Duration",
+        size: 24,
+        color: dark
+    }).loc(-92, -180, homeScreen);
+    
+    const durationRadio = new RadioButtons({
+        size: 20,
+        buttons: ["30s", "60s"],
+        selectedIndex: 0,
+        vertical:false,
+        spacing: 10,
+        color: blue,
+        backgroundColor: light
+    }).loc(-92, -140, homeScreen)
+    .on("change", function() {
+        appState.duration = this.selectedIndex == 0 ? 30 : 60;
+    });
+    
+    // Player name
+    new Label({
+        text: "Player Name",
+        size: 24,
+        color: dark
+    }).loc(-92, 0, homeScreen);
+    
+    const nameInput = new TextInput({
+        placeholder:"Player1",
+        width:200,
+        height:40,
+        backgroundColor:light,
+        borderColor:blue,
+        borderWidth:2,
+        corner:5
+    }).loc(-92, 40, homeScreen)
+    .on("change", function() {
+        appState.playerName = this.text || "Player1";
+    });
+    
+    // Start button
+    const startButton = new Button({
+        label:"START",
+        width:200,
+        height:50,
+        backgroundColor:blue,
+        rollBackgroundColor:"#1976D2",
+        corner:10
+    }).loc(-92, 200, homeScreen)
+    .on("click", function() {
+        showScreen("game");
+        startGame();
+    });
+    
+    // GAME SCREEN SETUP
+    
+    // RESULTS SCREEN
+    function showResultsScreen() {
+        // Calculate average tilt
+        if (appState.tiltReadings.length > 0) {
+            appState.avgTilt = appState.tiltReadings.reduce((a, b) => a + b, 0) / appState.tiltReadings.length;
+        }
+        
+        resultsScreen.removeAllChildren();
+        
+        new Label({
+            text: appState.playerName,
+            size: 40,
+            color: blue,
+            bold: true
+        }).pos(0, -200, CENTER, CENTER, resultsScreen);
+        
+        new Label({
+            text: `✅ Reps: ${appState.repCount}`,
+            size: 30,
+            color: dark
+        }).loc(-100, -50,resultsScreen);
+        
+        new Label({
+            text: `🎯 Avg Tilt: ${appState.avgTilt.toFixed(1)}°`,
+            size: 30,
+            color: dark
+        }).loc(-100, -100,resultsScreen);
+        
+        new Label({
+            text: `⚠️ Warnings: ${appState.warnings}`,
+            size: 30,
+            color: dark
+        }).loc(-100, -150,resultsScreen);
+        
+        // Action buttons
+        new Button({
+            label:"RETRY",
+            width:150,
+            height:60,
+            backgroundColor:blue,
+            rollBackgroundColor:"#1976D2",
+            corner:10
+        }).loc(-150, 200,resultsScreen)
+        .on("click", function() {
+            resetGameState();
+            showScreen("game");
+            startGame();
+        });
+        
+        new Button({
+            label:"HOME",
+            width:150,
+            height:60,
+            backgroundColor:"#4CAF50",
+            rollBackgroundColor:"#388E3C",
+            corner:10
+        }).loc(30, 200, resultsScreen)
+        .on("click", function() {
+            resetGameState();
+            showScreen("home");
+        });
+    }
+    
+    // Helper functions
+    function showScreen(screenName) {
+        appState.screen = screenName;
+        homeScreen.vis(false);
+        gameScreen.vis(false);
+        resultsScreen.vis(false);
+        
+        if (screenName === "home") homeScreen.vis(true);
+        else if (screenName === "game") gameScreen.vis(true);
+        else if (screenName === "results") {
+            showResultsScreen();
+            resultsScreen.vis(true);
+        }
+        
+        S.update();
+    }
+    
+    function resetGameState() {
+        appState.repCount = 0;
+        appState.warnings = 0;
+        appState.tiltReadings = [];
+        appState.avgTilt = 0;
+    }
+    
+    function startGame() {
+        // Game initialization code will go here
+        setupTiltDetection();
+    }
+    
     function setupTiltDetection() {
-        console.log("Setting up tilt detection for both axes");
+        // Clear game screen first
+        gameScreen.removeAllChildren();
         
-        // 添加计数相关变量
-        let repCount = 0;
+        // Add timer display
+        const timerLabel = new Label({
+            text: `${appState.duration}s`,
+            size: 30,
+            color: blue,
+            bold: true
+        }).loc(-100, -260, gameScreen);
+
+        // Add rep counter display
+        const repLabel = new Label({
+            text: "Reps: 0",
+            size: 30,
+            color: blue,
+            bold: true
+        }).loc(0, -260, gameScreen);
         
-        // 创建合并了计数显示的按钮 - 使用基本参数
+        // Create tilt display
+        const tiltDisplay = new Label({
+            text: "Tilt: 0.0°\nFront/Back: 0.0°, Left/Right: 0.0°",
+            size: 18,
+            color: dark,
+            align: CENTER
+        }).loc(0, 0, gameScreen);
+        
+        // Create balance ring
+        const ring = new Circle({
+            radius: 100,
+            color: null,
+            borderColor: "#4CAF50", // Green for level
+            borderWidth: 10
+        }).center(gameScreen).mov(null, 100);
+        
+        // Create progress ring
+        const progressRing = new Shape().center(gameScreen).mov(null, 100);
+        
+        // Add manual rep counter button (from your original code)
         const countButton = new Button({
-            label: "次数: 0",
-            width: 150,
+            label: "Count: 0",
+            width: 160,
             height: 60,
             backgroundColor: "#4CAF50",
             rollBackgroundColor: "#388E3C",
             corner: 10
-        }).pos(0, -150, CENTER, CENTER, container);
+        }).loc(-160, -200, gameScreen);
         
-        // 按钮点击事件
+        // Button click event
         countButton.on("click", function() {
-            repCount++;
-            // 使用setText方法而不是直接设置label属性
-            countButton.text = `次数: ${repCount}`;
+            appState.repCount++;
+            countButton.text = `Count: ${appState.repCount}`;
+            repLabel.text = `Reps: ${appState.repCount}`;
 
-            // 按钮动画效果
+            // Button animation effect
             countButton.animate({
                 props: {scale:1.1},
                 time: 100,
@@ -116,113 +314,190 @@ function ready() {
             S.update();
         });
         
-        // 创建一个独立的容器来放置重置按钮，避免事件冒泡
-        const resetContainer = new Container().addTo(container);
-        
-        // 添加重置按钮 - 使用基本参数
+        // Add reset button
         const resetButton = new Button({
-            label: "重置",
-            width: 80,
-            height: 40,
+            label: "Reset",
+            width: 150,
+            height: 60,
             backgroundColor: "#F44336",
             rollBackgroundColor: "#D32F2F",
             corner: 8
-        }).pos(80, -150, RIGHT, CENTER, resetContainer);
+        }).loc(10, -200, gameScreen);
         
-        // 重置按钮点击事件
+        // Reset button click event
         resetButton.on("click", function(e) {
-            // 阻止事件冒泡
             e.stopPropagation();
             
-            repCount = 0;
-            // 使用setText方法而不是直接设置label属性
-            countButton.text = `次数: ${repCount}`;
+            appState.repCount = 0;
+            countButton.text = `Count: ${appState.repCount}`;
+            repLabel.text = `Reps: ${appState.repCount}`;
             
-            console.log("重置计数器为0");
             S.update();
         });
         
-        // 监听设备方向变化
-        window.addEventListener("deviceorientation", (event) => {
-            // 获取旋转值
-            const beta = event.beta || 0;  // x轴旋转 (-180 到 180)
-            const gamma = event.gamma || 0; // y轴旋转 (-90 到 90)
+        // Variables for tilt detection
+        let isInDownPosition = false;
+        let warningActive = false;
+        let dangerThreshold = 20; // Threshold for warning
+        let failureThreshold = 25; // Threshold for failure
+        
+        // Timer functionality
+        let timeRemaining = appState.duration;
+        let timerInterval = setInterval(() => {
+            timeRemaining--;
+            timerLabel.text = `${timeRemaining}s`;
             
-            // 计算绝对值
+            if (timeRemaining <= 0) {
+                clearInterval(timerInterval);
+                window.removeEventListener("deviceorientation", handleOrientation);
+                showScreen("results");
+            }
+            
+            S.update();
+        }, 1000);
+        
+        // Device orientation handler
+        function handleOrientation(event) {
+            // Get rotation values
+            const beta = event.beta || 0;  // x-axis rotation (-180 to 180)
+            const gamma = event.gamma || 0; // y-axis rotation (-90 to 90)
+            
+            // Calculate absolute values
             const absBeta = Math.abs(beta);
             const absGamma = Math.abs(gamma);
             
-            // 计算总体倾斜度
+            // Calculate total deviation
             const totalDeviation = Math.sqrt(absBeta * absBeta + absGamma * absGamma);
             
-            // 显示倾斜度
-            tiltDisplay.text = `倾斜: ${totalDeviation.toFixed(1)}°\n前后: ${absBeta.toFixed(1)}°, 左右: ${absGamma.toFixed(1)}°`;
+            // Store tilt reading for average calculation
+            appState.tiltReadings.push(totalDeviation);
             
-            // 更新环的颜色和大小
-            if (totalDeviation > 20) {
-                ring.borderColor = "#ff0000"; // 红色表示严重倾斜
+            // Display tilt
+            tiltDisplay.text = `Tilt: ${totalDeviation.toFixed(1)}°\nFront/Back: ${beta.toFixed(1)}°, Left/Right: ${gamma.toFixed(1)}°`;
+            
+            // Update ring color and size
+            if (totalDeviation > failureThreshold) {
+                ring.borderColor = "#ff0000"; // Red for severe tilt
                 ring.scaleX = ring.scaleY = 0.7;
-            } else if (totalDeviation > 10) {
-                ring.borderColor = "#ff9800"; // 橙色表示中度倾斜
+                
+                if (!warningActive) {
+                    warningActive = true;
+                    appState.warnings++;
+                    
+                    // Vibrate if supported
+                    if (navigator.vibrate) {
+                        navigator.vibrate(200);
+                    }
+                    
+                    // Check for failure
+                    if (appState.warnings > 3) {
+                        // Game over due to excessive warnings
+                        clearInterval(timerInterval);
+                        window.removeEventListener("deviceorientation", handleOrientation);
+                        showScreen("results");
+                    }
+                    
+                    // Reset warning after 3 seconds
+                    setTimeout(() => {
+                        warningActive = false;
+                    }, 3000);
+                }
+            } else if (totalDeviation > dangerThreshold) {
+                ring.borderColor = "#ff9800"; // Orange for moderate tilt
                 ring.scaleX = ring.scaleY = 0.85;
             } else if (totalDeviation > 5) {
-                ring.borderColor = "#FFEB3B"; // 黄色表示轻微倾斜
+                ring.borderColor = "#FFEB3B"; // Yellow for slight tilt
                 ring.scaleX = ring.scaleY = 0.95;
             } else {
-                ring.borderColor = "#4CAF50"; // 绿色表示水平
+                ring.borderColor = "#4CAF50"; // Green for level
                 ring.scaleX = ring.scaleY = 1;
             }
 
-            // 绘制进度环
+            // Draw progress ring
             const progress = Math.min(totalDeviation / 20, 1);
             progressRing.graphics.clear()
                 .setStrokeStyle(5)
                 .beginStroke(ring.borderColor)
                 .arc(0, 0, 80, 0, Math.PI * 2 * progress);
             
-            S.update();
-        });
-    }
-
-    // 处理权限
-    if (typeof DeviceOrientationEvent !== 'undefined' && 
-        typeof DeviceOrientationEvent.requestPermission === 'function') {
-        
-        // 添加权限按钮
-        const permissionButton = new Button({
-            width: 200,
-            height: 50,
-            label: "开始训练",
-            backgroundColor: blue,
-            rollBackgroundColor: "#1976D2",
-            corner: 10
-        }).center(container);
-
-        permissionButton.on("click", async () => {
-            try {
-                // 请求设备方向权限
-                const orientationPermission = await DeviceOrientationEvent.requestPermission();
-                
-                // 请求设备运动权限（如果可用）
-                let motionPermission = "granted";
-                if (typeof DeviceMotionEvent !== 'undefined' && 
-                    typeof DeviceMotionEvent.requestPermission === 'function') {
-                    motionPermission = await DeviceMotionEvent.requestPermission();
-                }
-                
-                if (orientationPermission === "granted" && motionPermission === "granted") {
-                    setupTiltDetection();
-                    permissionButton.removeFrom();
-                }
-            } catch (error) {
-                console.error("Error requesting permission:", error);
+            // Automatic rep counting based on tilt pattern
+            // Detect downward movement (increasing beta)
+            if (!isInDownPosition && absBeta > 40) {
+                isInDownPosition = true;
             }
+            // Detect upward movement (decreasing beta)
+            else if (isInDownPosition && absBeta < 15) {
+                isInDownPosition = false;
+                // Count a rep
+                appState.repCount++;
+                repLabel.text = `Reps: ${appState.repCount}`;
+                countButton.text = `Count: ${appState.repCount}`;
+                
+                // Provide feedback
+                if (navigator.vibrate) {
+                    navigator.vibrate(100);
+                }
+            }
+            
+            S.update();
+        }
+        
+        // Request permission for device orientation
+        if (typeof DeviceOrientationEvent !== 'undefined' && 
+            typeof DeviceOrientationEvent.requestPermission === 'function') {
+            // iOS 13+ requires permission
+            DeviceOrientationEvent.requestPermission()
+                .then(permissionState => {
+                    if (permissionState === 'granted') {
+                        window.addEventListener('deviceorientation', handleOrientation);
+                    }
+                })
+                .catch(console.error);
+        } else {
+            // Non iOS 13+ devices
+            window.addEventListener('deviceorientation', handleOrientation);
+        }
+        
+        // Add control buttons at the bottom
+        const buttonContainer = new Container().loc(0, 200, gameScreen);
+        
+        // Add a back button to game screen
+        new Button({
+            label: "QUIT",
+            width: 150,
+            height: 60,
+            backgroundColor: purple,
+            rollBackgroundColor: "#d32f2f",
+            corner: 5
+        }).loc(-160, 0, buttonContainer)
+        .on("click", function() {
+            clearInterval(timerInterval);
+            window.removeEventListener("deviceorientation", handleOrientation);
+            resetGameState();
+            showScreen("home");
         });
-    } else {
-        setupTiltDetection();
+        
+        // Add a finish button to end the game early
+        new Button({
+            label: "FINISH",
+            width: 150,
+            height: 60,
+            backgroundColor: "#2196F3",
+            rollBackgroundColor: "#1976D2",
+            corner: 5
+        }).loc(10, 0, buttonContainer)
+        .on("click", function() {
+            clearInterval(timerInterval);
+            window.removeEventListener("deviceorientation", handleOrientation);
+            showScreen("results");
+        });
     }
-
-    S.update();
+    
+    // Start with home screen
+    showScreen("home");
+    
+    // Your existing tilt detection code goes here
+    // ...
 }
 </script>
 
