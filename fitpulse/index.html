@@ -84,9 +84,9 @@ function ready() {
         size: 48,
         color: "#BD00E3",//purple
         bold: true
-    }).loc(214, 80, header);
+    }).loc(200, 60, header);
 
-    const icon = new Pic("assets/icon.png").centerReg().sca(.2).loc(160,100,header);
+    const icon = new Pic("assets/icon.png").centerReg().sca(.2).loc(148,80,header);
 
     // ---------------- MODE SELECTION -----------------
     new Label({
@@ -170,38 +170,32 @@ function ready() {
 
     // ---------------- Nav Footer -----------------
     const navFooter = new Container(500,100).pos(0,0, CENTER, BOTTOM).outline();
-    const aboutButton = new Button({
-        label:"ABOUT",
-        width:120,
-        height:40,
-        backgroundColor:"#2B2730",//background
+    const aboutButton = new Label({
+        text:"ABOUT",
+        size:24,
         color: light,
-        corner:0
-    }).loc(0,0, navFooter)
+        corner:0,
+    }).loc(80,0, navFooter)
     .on("click",function() {
         showScreen("about");
     });
 
-    const homeButton = new Button({
-        label:"HOME",
-        width:120,
-        height:40,
-        backgroundColor:"#2B2730",//background
+    const homeButton = new Label({
+        text:"HOME",
+        size:24,
         color: light,
-        corner:0
-    }).loc(190,0, navFooter)
+        corner:0,
+    }).loc(220,0, navFooter)
     .on("click",function() {
         showScreen("home");
     });
 
-    const youButton = new Button({
-        label:"YOU",
-        width:120,
-        height:40,
-        backgroundColor:"#2B2730",//background
+    const youButton = new Label({
+        text:"YOU",
+        size:24,
         color: light,
-        corner:0    
-    }).loc(378,0, navFooter)
+        corner:0,
+    }).loc(360,0, navFooter)
     .on("click",function() {
         showScreen("you");
     });
