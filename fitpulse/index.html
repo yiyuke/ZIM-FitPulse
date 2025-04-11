@@ -49,13 +49,13 @@ https://zimjs.com/zapps/tool.html
 const assets = "icon.png";
 const path = "assets/"
 
-new Frame(FULL, null, null, light, dark, ready, assets, path);
+new Frame(FULL, null, null, "#2B2730", dark, ready, assets, path);
 function ready() {
     new PWA();
 
     // Create app state
     const appState = {
-        screen: "home", // home, game, results
+        screen: "home", // home, game, results, about
         mode: "solo",   // solo, multiplayer
         duration: 30,   // 30, 60
         playerName: "Player1",
@@ -72,21 +72,33 @@ function ready() {
     const homeScreen = new Container().center();
     const gameScreen = new Container().center().vis(false);
     const resultsScreen = new Container().center().vis(false);
+    const aboutScreen = new Container().center().vis(false);
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // HOME SCREEN
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // ---------------- HEADER -----------------
+    const header = new Container(500,150).pos(0,0, CENTER, TOP).outline();
     const logo = new Label({
         text: "FitPulse",
-        size: 50,
-        color: blue,
+        size: 48,
+        color: "#BD00E3",//purple
         bold: true
-    }).loc(-100, -270, homeScreen);
-    
-    // Mode selection
+    }).loc(214, 80, header);
+
+    const icon = new Pic("assets/icon.png").centerReg().sca(.2).loc(160,100,header);
+
+    // ---------------- MODE SELECTION -----------------
+    new Label({
+        text:"👋🏻 Welcome!",
+        size: 36,
+        color: white
+    }).loc(-110, -260, homeScreen);
+
     new Label({
         text: "Mode Selection",
         size: 24,
-        color: dark
+        color: white
     }).loc(-100, -90, homeScreen);
     
     const modeRadio = new RadioButtons({
@@ -95,7 +107,7 @@ function ready() {
         vertical:false,
         selectedIndex: 0,
         spacing: 10,
-        color: blue,
+        color: "#41B900",//green
         backgroundColor: light
     }).loc(-100, -50, homeScreen)
     .on("change", function() {
@@ -106,7 +118,7 @@ function ready() {
     new Label({
         text: "Duration",
         size: 24,
-        color: dark
+        color: white
     }).loc(-100, -180, homeScreen);
     
     const durationRadio = new RadioButtons({
@@ -115,7 +127,7 @@ function ready() {
         selectedIndex: 0,
         vertical:false,
         spacing: 10,
-        color: blue,
+        color: "#41B900",//green,
         backgroundColor: light
     }).loc(-100, -140, homeScreen)
     .on("change", function() {
@@ -126,15 +138,15 @@ function ready() {
     new Label({
         text: "Player Name",
         size: 24,
-        color: dark
+        color: white
     }).loc(-100, 0, homeScreen);
     
     const nameInput = new TextInput({
         placeholder:"Player1",
-        width:200,
-        height:40,
+        width:220,
+        height:48,
         backgroundColor:light,
-        borderColor:blue,
+        borderColor:white,
         borderWidth:2,
         corner:5
     }).loc(-100, 40, homeScreen)
@@ -145,16 +157,55 @@ function ready() {
     // Start button
     const startButton = new Button({
         label:"START",
-        width:200,
-        height:50,
-        backgroundColor:blue,
+        width:240,
+        height:60,
+        backgroundColor:"#BD00E3",//purple
         rollBackgroundColor:"#1976D2",
         corner:10
-    }).loc(-100, 200, homeScreen)
+    }).loc(-114, 200, homeScreen)
     .on("click", function() {
         showScreen("game");
         startGame();
     });
+
+    // ---------------- Nav Footer -----------------
+    const navFooter = new Container(500,100).pos(0,0, CENTER, BOTTOM).outline();
+    const aboutButton = new Button({
+        label:"ABOUT",
+        width:120,
+        height:40,
+        backgroundColor:"#2B2730",//background
+        color: light,
+        corner:0
+    }).loc(0,0, navFooter)
+    .on("click",function() {
+        showScreen("about");
+    });
+
+    const homeButton = new Button({
+        label:"HOME",
+        width:120,
+        height:40,
+        backgroundColor:"#2B2730",//background
+        color: light,
+        corner:0
+    }).loc(190,0, navFooter)
+    .on("click",function() {
+        showScreen("home");
+    });
+
+    const youButton = new Button({
+        label:"YOU",
+        width:120,
+        height:40,
+        backgroundColor:"#2B2730",//background
+        color: light,
+        corner:0    
+    }).loc(378,0, navFooter)
+    .on("click",function() {
+        showScreen("you");
+    });
+    
     
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     // RESULTS SCREEN
