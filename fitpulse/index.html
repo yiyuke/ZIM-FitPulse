@@ -78,7 +78,7 @@ function ready() {
     // HOME SCREEN
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // ---------------- HEADER -----------------
-    const header = new Container(500,150).pos(0,0, CENTER, TOP).outline();
+    const header = new Container(500,150).pos(0,0, CENTER, TOP)//.outline();
     const logo = new Label({
         text: "FitPulse",
         size: 48,
@@ -169,13 +169,13 @@ function ready() {
     });
 
     // ---------------- Nav Footer -----------------
-    const navFooter = new Container(500,100).pos(0,0, CENTER, BOTTOM).outline();
+    const navFooter = new Container(500,100).pos(0,0, CENTER, BOTTOM)//.outline();
     const aboutButton = new Label({
         text:"ABOUT",
         size:24,
         color: light,
         corner:0,
-    }).loc(80,0, navFooter)
+    }).loc(70,0, navFooter)
     .on("click",function() {
         showScreen("about");
     });
@@ -195,7 +195,7 @@ function ready() {
         size:24,
         color: light,
         corner:0,
-    }).loc(360,0, navFooter)
+    }).loc(370,0, navFooter)
     .on("click",function() {
         showScreen("you");
     });
@@ -214,37 +214,37 @@ function ready() {
         
         new Label({
             text: appState.playerName,
-            size: 40,
-            color: blue,
+            size: 36,
+            color: white,
             bold: true
-        }).pos(0, -200, CENTER, CENTER, resultsScreen);
+        }).pos(0, -80, CENTER, CENTER, resultsScreen);
         
         new Label({
             text: `✅ Reps: ${appState.repCount}`,
-            size: 30,
-            color: dark
-        }).loc(-100, -50,resultsScreen);
+            size: 24,
+            color: white
+        }).loc(-80, 70,resultsScreen);
         
         new Label({
             text: `🎯 Avg Tilt: ${appState.avgTilt.toFixed(1)}°`,
-            size: 30,
-            color: dark
-        }).loc(-100, -100,resultsScreen);
+            size: 24,
+            color: white
+        }).loc(-80, 20,resultsScreen);
         
         new Label({
             text: `⚠️ Warnings: ${appState.warnings}`,
-            size: 30,
-            color: dark
-        }).loc(-100, -150,resultsScreen);
+            size: 24,
+            color: white
+        }).loc(-80, -30,resultsScreen);
         
         // Action buttons
         new Button({
             label:"RETRY",
             width:150,
             height:60,
-            backgroundColor:blue,
-            rollBackgroundColor:"#1976D2",
-            corner:10
+            backgroundColor:"#41B900",//green
+            rollBackgroundColor:"#388E3C",
+            corner:6
         }).loc(-160, 200,resultsScreen)
         .on("click", function() {
             resetGameState();
@@ -256,9 +256,9 @@ function ready() {
             label:"HOME",
             width:150,
             height:60,
-            backgroundColor:"#4CAF50",
-            rollBackgroundColor:"#388E3C",
-            corner:10
+            backgroundColor:"#BD00E3",//purple
+            rollBackgroundColor:"#1976D2",
+            corner:6
         }).loc(20, 200, resultsScreen)
         .on("click", function() {
             resetGameState();
@@ -307,7 +307,7 @@ function ready() {
         const timerLabel = new Label({
             text: `${appState.duration}s`,
             size: 30,
-            color: blue,
+            color: white,
             bold: true
         }).loc(-100, -260, gameScreen);
 
@@ -315,25 +315,25 @@ function ready() {
         const repLabel = new Label({
             text: "Reps: 0",
             size: 30,
-            color: blue,
+            color: white,
             bold: true
-        }).loc(0, -260, gameScreen);
+        }).loc(20, -260, gameScreen);
         
         // Create tilt display
         const tiltDisplay = new Label({
             text: "Tilt: 0.0°",
-            size: 18,
-            color: dark,
+            size: 24,
+            color: white,
             align: CENTER
-        }).centerReg().loc(4, 26, gameScreen).outline();
+        }).centerReg().loc(4, 26, gameScreen)//.outline();
         
         // Create balance ring
         const ring = new Circle({
             radius: 100,
             color: null,
-            borderColor: "#4CAF50", // Green for level
+            borderColor: "#41B900", // Green for level
             borderWidth: 10
-        }).centerReg(gameScreen).mov(null, 140).outline();
+        }).centerReg(gameScreen).mov(-10, 136)//.outline();
         
         // Create progress ring
         const progressRing = new Shape().centerReg(gameScreen).mov(null, 150);
@@ -344,7 +344,7 @@ function ready() {
             size: 20,
             width: 174,
             height: 60,
-            backgroundColor: "#4CAF50",
+            backgroundColor: "#41B900",//green
             rollBackgroundColor: "#388E3C",
             corner: 10
         }).loc(-160, -200, gameScreen);
@@ -370,9 +370,9 @@ function ready() {
             label: "Reset",
             width: 130,
             height: 60,
-            backgroundColor: "#F44336",
-            rollBackgroundColor: "#D32F2F",
-            corner: 8
+            backgroundColor: "#BD00E3",//purple
+            rollBackgroundColor: "#1976D2",
+            corner: 10
         }).loc(32, -200, gameScreen);
         
         // Reset button click event
@@ -515,11 +515,12 @@ function ready() {
         // Add a back button to game screen
         new Button({
             label: "QUIT",
+            color: "#2B2730",//dark gray
             width: 150,
             height: 60,
-            backgroundColor: purple,
+            backgroundColor: "#DDDDDE",//light gray
             rollBackgroundColor: "#d32f2f",
-            corner: 5
+            corner: 6
         }).loc(-160, 0, buttonContainer)
         .on("click", function() {
             clearInterval(timerInterval);
@@ -533,9 +534,9 @@ function ready() {
             label: "FINISH",
             width: 150,
             height: 60,
-            backgroundColor: "#2196F3",
+            backgroundColor: "#FF6000",//orange
             rollBackgroundColor: "#1976D2",
-            corner: 5
+            corner: 6
         }).loc(10, 0, buttonContainer)
         .on("click", function() {
             clearInterval(timerInterval);
