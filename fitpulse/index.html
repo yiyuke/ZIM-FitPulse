@@ -564,7 +564,7 @@ function ready() {
         backgroundColor: "#2B2730", // dark gray    
         rollBackgroundColor: "#1976D2",
         corner: 25
-    }).pos(-178, -340, LEFT, TOP, aboutScreen)
+    }).pos(-178, -320, LEFT, TOP, aboutScreen)
     .on("click", function() {
         aboutScreen.vis(false);
         if (appState.screen === "home") {
@@ -581,7 +581,7 @@ function ready() {
     new LabelWords({
         label: "FitPulse is a fun and interactive balance game that challenges your body and reflexes using real-time motion sensors. Play solo or challenge your friends!",
         size: 16,
-        width: 380,
+        width: 360,
         color: white,
         align: LEFT,
     }).loc(-170, -250, aboutScreen);
