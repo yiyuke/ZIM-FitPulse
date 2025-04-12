@@ -56,7 +56,7 @@ function ready() {
     new PWA();
 
     // Create app state
-    const appState = {
+    let appState = {
         screen: "home",
         mode: "solo",
         duration: 30,
@@ -104,7 +104,7 @@ function ready() {
         color: white
     }).loc(-100, -90, homeScreen);
     
-    const modeRadio = new RadioButtons({
+    let modeRadio = new RadioButtons({
         size: 20,
         buttons: ["Solo", "Multiplayer"],
         vertical:false,
@@ -124,7 +124,7 @@ function ready() {
         color: white
     }).loc(-100, -180, homeScreen);
     
-    const durationRadio = new RadioButtons({
+    let durationRadio = new RadioButtons({
         size: 20,
         buttons: ["30s", "60s"],
         selectedIndex: 0,
@@ -144,7 +144,7 @@ function ready() {
         color: white
     }).loc(-100, 0, homeScreen);
     
-    const nameInput = new TextInput({
+    let nameInput = new TextInput({
         placeholder:"Player1",
         width:220,
         height:48,
@@ -238,6 +238,7 @@ function ready() {
         corner:0,
     }).loc(220,10, navFooter)
     .on("click",function() {
+        resetGameState();
         showScreen("home");
         aboutScreen.vis(false);
         S.update();
@@ -439,7 +440,9 @@ function ready() {
             }
             appState.isReady = false;
             gameStarting = false;  // Reset game starting flag
+            resetGameState();
             showScreen("home");
+            S.update();
         });
 
         updatePlayerList();
@@ -690,7 +693,7 @@ function ready() {
                 appState.socket.dispose();
                 appState.socket = null;
                 appState.isReady = false;
-                showScreen("room");
+                showScreen("home");
             } else {
                 showScreen("home");
             }
@@ -762,11 +765,12 @@ function ready() {
 
             // Create waiting message
             const waitingLabel = new Label({
-                text: "Waiting for other players...",
+                text: "🏁 You finished early!\nLet's see how you ranked against others.",
                 size: 24,
                 color: white,
-                align: CENTER
-            }).center(resultsScreen);
+                align: CENTER,
+                lineHeight: 28
+            }).center(resultsScreen).mov(0,-50);
 
             // Listen for other players' results
             appState.socket.on("data", (data) => {
@@ -776,11 +780,10 @@ function ready() {
                         reps: data.reps
                     });
 
-                    console.log("Updated finishedPlayers:", Array.from(finishedPlayers.entries()));
-
                     // Show results when all players have finished
                     if (finishedPlayers.size >= expectedPlayers) {
                         showFinalResults();
+                        S.update();
                     }
                 }
             });
@@ -805,12 +808,32 @@ function ready() {
                 const playerRank = players.findIndex(p => p.name === appState.playerName) + 1;
                 const totalPlayers = players.length;
 
-                // Show rank
+                // // Show rank
+                // new Label({
+                //     text: `🏅Your Rank: ${playerRank} of ${totalPlayers}`,
+                //     size: 24,
+                //     color: white,
+                //     align: CENTER
+                // }).loc(0, -150, resultsScreen);
+
+                // Add personalized rank message
+                let resultMessage = "";
+                if (playerRank === 1) {
+                    resultMessage = "🥇 You're the Champion!\nOutstanding performance!";
+                } else if (playerRank === 2) {
+                    resultMessage = "🥈 Great job!\nYou came in 2nd place!";
+                } else if (playerRank === 3) {
+                    resultMessage = "🥉 Nice try!\nYou placed 3rd.\nKeep improving!";
+                } else {
+                    resultMessage = `🏅 You placed #${playerRank}.\nStay steady and come back stronger!`;
+                }
+
                 new Label({
-                    text: `Your Rank: ${playerRank} of ${totalPlayers}`,
+                    text: resultMessage,
                     size: 24,
                     color: white,
-                    align: CENTER
+                    align: CENTER,
+                    lineHeight: 30
                 }).loc(0, -150, resultsScreen);
 
                 // Show all players' scores
@@ -820,33 +843,13 @@ function ready() {
                     new Label({
                         text: `${index + 1}. ${player.name}: ${player.reps} reps`,
                         size: 24,
-                        color: isCurrentPlayer ? "#41B900" : white,
-                        bold: isCurrentPlayer
-                    }).loc(0, yPos, resultsScreen);
+                        color: isCurrentPlayer ? "#BD00E3" : white,
+                        bold: isCurrentPlayer,
+                        lineHeight: 30
+                    }).loc(-66, yPos, resultsScreen);
                     yPos += 40;
                     S.update();
                 });
-
-                // Remove retry and home buttons in multiplayer mode
-                if (appState.mode === "multiplayer") {
-                    // Only allow navigation using the nav footer
-                    S.update();
-                } else {
-                    // Solo mode buttons
-                    new Button({
-                        label: "RETRY",
-                        width: 150,
-                        height: 60,
-                        backgroundColor: "#41B900",
-                        rollBackgroundColor: "#388E3C",
-                        corner: 6
-                    }).loc(-160, 200, resultsScreen)
-                    .on("click", function() {
-                        resetGameState();
-                        showScreen("game");
-                        startGame();
-                    });
-                }
             };
 
         } else {
@@ -871,7 +874,7 @@ function ready() {
 
             new Label({
                 text: resultMessage,
-                size: 24,
+                size: 20,
                 color: white,
                 align: CENTER,
                 lineHeight: 30
@@ -881,17 +884,29 @@ function ready() {
                 text: `✅ Reps: ${appState.repCount}`,
                 size: 24,
                 color: white
-            }).loc(-80, 0, resultsScreen);
+            }).loc(-80, 70,resultsScreen);
+ 
+            new Label({
+                text: `🎯 Avg Tilt: ${appState.avgTilt.toFixed(1)}°`,
+                size: 24,
+                color: white
+            }).loc(-80, 20,resultsScreen);
+ 
+            new Label({
+                text: `⚠️ Warnings: ${appState.warnings}`,
+                size: 24,
+                color: white
+            }).loc(-80, -30,resultsScreen);
 
-            // Solo mode buttons
+            // Retry button
             new Button({
                 label: "RETRY",
-                width: 150,
+                width: 240,
                 height: 60,
                 backgroundColor: "#41B900",
                 rollBackgroundColor: "#388E3C",
                 corner: 6
-            }).loc(-160, 200, resultsScreen)
+            }).loc(-114, 200, resultsScreen)
             .on("click", function() {
                 resetGameState();
                 showScreen("game");
@@ -932,6 +947,7 @@ function ready() {
             appState.socket = null;
         }
         appState.isReady = false;
+        S.update();
     }
     
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
