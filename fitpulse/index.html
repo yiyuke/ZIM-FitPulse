@@ -62,7 +62,8 @@ function ready() {
         repCount: 0,
         warnings: 0,
         avgTilt: 0,
-        tiltReadings: []
+        tiltReadings: [],
+        gameConclusionType: "completed" // Default to completed
     };
 
     // Main container for all screens
@@ -160,7 +161,7 @@ function ready() {
         width:240,
         height:60,
         backgroundColor:"#BD00E3",//purple
-        rollBackgroundColor:"#1976D2",
+        rollBackgroundColor:"#8A00A3",//darker purple
         corner:10
     }).loc(-114, 200, homeScreen)
     .on("click", function() {
@@ -225,7 +226,52 @@ function ready() {
             size: 36,
             color: white,
             bold: true
-        }).pos(0, -80, CENTER, CENTER, resultsScreen);
+        }).pos(0, -220, CENTER, CENTER, resultsScreen);
+        
+        // Add result message based on game mode and performance
+        let resultMessage = "";
+        
+        if (appState.mode === "solo") {
+            if (appState.gameConclusionType === "quit") {
+                resultMessage = "👋 Session ended early.\nCome back when you're ready to try again!";
+            } else if (appState.gameConclusionType === "finished") {
+                resultMessage = "⏱️ Early finish!\nGood effort on your workout today.";
+            } else if (appState.warnings > 3) {
+                resultMessage = "⚠️ Oops! You lost balance too many times.\nKeep practicing and try again!";
+            } else {
+                resultMessage = "🎉 Nice work! You kept your balance and finished strong.\nKeep it up!";
+            }
+        } else { // multiplayer mode
+            if (appState.gameConclusionType === "quit") {
+                resultMessage = "🚶‍♂️ You left the game. Your competitors will continue without you.";
+            } else if (appState.gameConclusionType === "finished") {
+                resultMessage = "🏁 You finished early! Let's see how you ranked against others.";
+            } else if (appState.warnings > 3) {
+                resultMessage = "🚫 You've been eliminated for losing balance.\nBetter luck next round!";
+            } else {
+                // For demo purposes, randomly assign a rank (in real app, this would be server-determined)
+                const rank = Math.floor(Math.random() * 4) + 1;
+                
+                if (rank === 1) {
+                    resultMessage = "🥇 You're the Champion!\nOutstanding performance!";
+                } else if (rank === 2) {
+                    resultMessage = "🥈 Great job!\nYou came in 2nd place!";
+                } else if (rank === 3) {
+                    resultMessage = "🥉 Nice try!\nYou placed 3rd.\nKeep improving!";
+                } else {
+                    resultMessage = "🏅 You placed #4.\nStay steady and come back stronger!";
+                }
+            }
+        }
+        
+        // Display the result message
+        new Label({
+            text: resultMessage,
+            size: 18,
+            color: white,
+            align: CENTER,
+            lineHeight: 24
+        }).loc(0, -150, resultsScreen)//.outline();
         
         new Label({
             text: `✅ Reps: ${appState.repCount}`,
@@ -265,7 +311,7 @@ function ready() {
             width:150,
             height:60,
             backgroundColor:"#BD00E3",//purple
-            rollBackgroundColor:"#1976D2",
+            rollBackgroundColor:"#8A00A3",//darker purple
             corner:6
         }).loc(20, 200, resultsScreen)
         .on("click", function() {
@@ -296,6 +342,7 @@ function ready() {
         appState.warnings = 0;
         appState.tiltReadings = [];
         appState.avgTilt = 0;
+        appState.gameConclusionType = "completed"; // Reset the conclusion type
     }
     
     function startGame() {
@@ -379,7 +426,7 @@ function ready() {
             width: 130,
             height: 60,
             backgroundColor: "#BD00E3",//purple
-            rollBackgroundColor: "#1976D2",
+            rollBackgroundColor: "#8A00A3",//darker purple
             corner: 10
         }).loc(32, -200, gameScreen);
         
@@ -533,6 +580,7 @@ function ready() {
         .on("click", function() {
             clearInterval(timerInterval);
             window.removeEventListener("deviceorientation", handleOrientation);
+            appState.gameConclusionType = "quit"; // Set the conclusion type
             resetGameState();
             showScreen("home");
         });
@@ -543,12 +591,13 @@ function ready() {
             width: 150,
             height: 60,
             backgroundColor: "#FF6000",//orange
-            rollBackgroundColor: "#1976D2",
+            rollBackgroundColor: "#CC4D00",//darker orange
             corner: 6
         }).loc(10, 0, buttonContainer)
         .on("click", function() {
             clearInterval(timerInterval);
             window.removeEventListener("deviceorientation", handleOrientation);
+            appState.gameConclusionType = "finished"; // Set the conclusion type
             showScreen("results");
         });
     }
@@ -632,7 +681,7 @@ function ready() {
     }).loc(-120, 200, aboutScreen)
     .on("click", function() {
         // Open GitHub repository in a new tab
-        window.open("https://github.com/yiyuke/mobile-app", "_blank");
+        window.open("https://github.com/yiyuke/ZIM-FitPulse", "_blank");
     });
     
     // Start with home screen
