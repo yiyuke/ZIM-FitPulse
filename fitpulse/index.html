@@ -239,7 +239,7 @@ function ready() {
             } else if (appState.warnings > 3) {
                 resultMessage = "⚠️ Oops! You lost balance too many times.\nKeep practicing and try again!";
             } else {
-                resultMessage = "🎉 Nice work! You kept your balance and finished strong.\nKeep it up!";
+                resultMessage = "🎉 Nice work!\nYou kept your balance and finished strong!";
             }
         } else { // multiplayer mode
             if (appState.gameConclusionType === "quit") {
@@ -346,8 +346,38 @@ function ready() {
     }
     
     function startGame() {
-        // Game initialization code will go here
-        setupTiltDetection();
+        // Clear game screen first
+        gameScreen.removeAllChildren();
+        
+        // Create countdown container
+        const countdownContainer = new Container().center(gameScreen);
+        const countdownLabel = new Label({
+            text: "3",
+            size: 100,
+            color: "#BD00E3", // purple
+            bold: true
+        }).center(countdownContainer);
+        
+        // Countdown animation
+        let count = 3;
+        const countdownInterval = setInterval(() => {
+            count--;
+            if (count > 0) {
+                countdownLabel.text = count;
+                // Add a scale animation effect
+                countdownLabel.animate({
+                    props: {scale:1.5},
+                    time: 200,
+                    rewind: true
+                });
+            } else {
+                clearInterval(countdownInterval);
+                countdownContainer.removeFrom(gameScreen);
+                // Start the actual game setup
+                setupTiltDetection();
+            }
+            S.update();
+        }, 1000);
     }
     
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -388,7 +418,7 @@ function ready() {
             color: null,
             borderColor: "#41B900", // Green for level
             borderWidth: 10
-        }).centerReg(gameScreen).mov(-10, 136)//.outline();
+        }).center(gameScreen).mov(2, 25)//.outline();
         
         // Create progress ring
         const progressRing = new Shape().centerReg(gameScreen).mov(null, 150);
