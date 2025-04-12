@@ -46,8 +46,10 @@ https://zimjs.com/zapps/tool.html
 
 <!-- zimjs.com - JavaScript Canvas Framework -->
 <script type="module">
+import zim from "https://zimjs.org/cdn/017/zim_socket";
+
 const assets = "icon.png";
-const path = "assets/"
+const path = "assets/";
 
 new Frame(FULL, null, null, "#2B2730", dark, ready, assets, path);
 function ready() {
@@ -55,25 +57,25 @@ function ready() {
 
     // Create app state
     const appState = {
-        screen: "home", // home, game, results, about
-        mode: "solo",   // solo, multiplayer
-        duration: 30,   // 30, 60
+        screen: "home",
+        mode: "solo",
+        duration: 30,
         playerName: "Player1",
         repCount: 0,
         warnings: 0,
         avgTilt: 0,
         tiltReadings: [],
-        gameConclusionType: "completed" // Default to completed
+        gameConclusionType: "completed",
+        socket: null,
+        isReady: false
     };
 
     // Main container for all screens
-    //const mainContainer = new Container().center();
-    
-    // Create screens
     const homeScreen = new Container().center();
     const gameScreen = new Container().center().vis(false);
     const resultsScreen = new Container().center().vis(false);
     const aboutScreen = new Container().center().vis(false);
+    const roomScreen = new Container().center().vis(false);
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // HOME SCREEN
@@ -165,8 +167,52 @@ function ready() {
         corner:10
     }).loc(-114, 200, homeScreen)
     .on("click", function() {
-        showScreen("game");
-        startGame();
+        if (appState.mode === "multiplayer") {
+            try {
+                // Initialize socket with correct format based on documentation
+                appState.socket = new zim.Socket(
+                    zimSocketURL,      // server
+                    "fitpulse",        // appName
+                    "room1",           // roomName
+                    4,                 // maxPeople
+                    true              // fill
+                );
+
+                // Handle socket ready event
+                appState.socket.on("ready", () => {
+                    console.log("Socket ready, connected as:", appState.socket.id);
+                    // Send initial player data using setProperties
+                    appState.socket.setProperties({
+                        name: appState.playerName,
+                        ready: false,
+                        reps: 0,
+                        status: "waiting"
+                    });
+                    showRoomScreen();
+                });
+
+                // Handle socket error
+                appState.socket.on("error", (error) => {
+                    console.error("Socket error:", error);
+                    new Pane({
+                        label: "Could not connect to multiplayer server",
+                        backgroundColor: dark,
+                        color: white,
+                        modal: true
+                    }).show();
+                    appState.mode = "solo";
+                    modeRadio.selectedIndex = 0;
+                });
+
+            } catch (e) {
+                console.error("Socket initialization error:", e);
+                appState.mode = "solo";
+                modeRadio.selectedIndex = 0;
+            }
+        } else {
+            showScreen("game");
+            startGame();
+        }
     });
 
     // ---------------- Nav Footer -----------------
@@ -208,176 +254,235 @@ function ready() {
         aboutScreen.vis(false);
         S.update();
     });
-    
-    
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
-    // RESULTS SCREEN
+
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    function showResultsScreen() {
-        // Calculate average tilt
-        if (appState.tiltReadings.length > 0) {
-            appState.avgTilt = appState.tiltReadings.reduce((a, b) => a + b, 0) / appState.tiltReadings.length;
-        }
-        
-        resultsScreen.removeAllChildren();
-        
+    // ROOM SCREEN
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+    // Room Screen Setup
+    function showRoomScreen() {
+        roomScreen.removeAllChildren();
+        showScreen("room");
+
+        // Track connected players
+        const connectedPlayers = new Map();
+        let gameStarting = false;  // Flag to prevent multiple game starts
+
+        // Room header
         new Label({
-            text: appState.playerName,
+            text: "Waiting Room",
             size: 36,
             color: white,
             bold: true
-        }).pos(0, -220, CENTER, CENTER, resultsScreen);
+        }).loc(-110, -260, roomScreen);
+
+        const playersContainer = new Container().loc(0, -150, roomScreen);
         
-        // Add result message based on game mode and performance
-        let resultMessage = "";
-        
-        if (appState.mode === "solo") {
-            if (appState.gameConclusionType === "quit") {
-                resultMessage = "👋 Session ended early.\nCome back when you're ready to try again!";
-            } else if (appState.gameConclusionType === "finished") {
-                resultMessage = "⏱️ Early finish!\nGood effort on your workout today.";
-            } else if (appState.warnings > 3) {
-                resultMessage = "⚠️ Oops! You lost balance too many times.\nKeep practicing and try again!";
-            } else {
-                resultMessage = "🎉 Nice work!\nYou kept your balance and finished strong!";
-            }
-        } else { // multiplayer mode
-            if (appState.gameConclusionType === "quit") {
-                resultMessage = "🚶‍♂️ You left the game. Your competitors will continue without you.";
-            } else if (appState.gameConclusionType === "finished") {
-                resultMessage = "🏁 You finished early! Let's see how you ranked against others.";
-            } else if (appState.warnings > 3) {
-                resultMessage = "🚫 You've been eliminated for losing balance.\nBetter luck next round!";
-            } else {
-                // For demo purposes, randomly assign a rank (in real app, this would be server-determined)
-                const rank = Math.floor(Math.random() * 4) + 1;
-                
-                if (rank === 1) {
-                    resultMessage = "🥇 You're the Champion!\nOutstanding performance!";
-                } else if (rank === 2) {
-                    resultMessage = "🥈 Great job!\nYou came in 2nd place!";
-                } else if (rank === 3) {
-                    resultMessage = "🥉 Nice try!\nYou placed 3rd.\nKeep improving!";
-                } else {
-                    resultMessage = "🏅 You placed #4.\nStay steady and come back stronger!";
+        const updatePlayerList = () => {
+            playersContainer.removeAllChildren();
+            let yPos = 0;
+            
+            // Add current player
+            new Label({
+                text: `👤 ${appState.playerName} ${appState.isReady ? '(Ready ✓)' : '(Not Ready)'}`,
+                size: 20,
+                color: white
+            }).loc(-100, yPos, playersContainer);
+            yPos += 40;
+
+            // Add other players
+            connectedPlayers.forEach((player, id) => {
+                if (id !== appState.socket.id && player.name) {
+                    console.log("Displaying player:", player);
+                    new Label({
+                        text: `👤 ${player.name} ${player.ready ? '(Ready ✓)' : '(Not Ready)'}`,
+                        size: 20,
+                        color: white
+                    }).loc(-100, yPos, playersContainer);
+                    yPos += 40;
                 }
+            });
+            
+            S.update();
+        };
+
+        const checkAndStartGame = () => {
+            if (gameStarting) return; // Prevent multiple starts
+
+            let allReady = true;
+            let validPlayers = 0;
+            
+            // Count current player
+            if (appState.isReady) validPlayers++;
+            else allReady = false;
+
+            // Check other players
+            connectedPlayers.forEach((player) => {
+                if (player.name) {
+                    validPlayers++;
+                    if (!player.ready) allReady = false;
+                }
+            });
+
+            console.log("Game check - All ready:", allReady, "Valid players:", validPlayers);
+
+            // Start game only if we have at least 2 players and all are ready
+            if (allReady && validPlayers >= 2) {
+                startCountdown();
             }
+        };
+
+        const startCountdown = () => {
+            if (gameStarting) return;
+            gameStarting = true;
+
+            // Clear existing content
+            roomScreen.removeAllChildren();
+
+            // Recreate room header
+            new Label({
+                text: "Waiting Room",
+                size: 36,
+                color: white,
+                bold: true
+            }).loc(-110, -260, roomScreen);
+
+            // Create countdown display
+            const countdownLabel = new Label({
+                text: "Starting in 3...",
+                size: 48,
+                color: "#41B900",
+                bold: true
+            }).center(roomScreen);
+
+            let count = 3;
+            console.log("Starting countdown");
+
+            const countInterval = setInterval(() => {
+                count--;
+                console.log("Countdown:", count);
+                
+                if (count > 0) {
+                    countdownLabel.text = `Starting in ${count}...`;
+                    S.update();
+                } else {
+                    clearInterval(countInterval);
+                    showScreen("game");
+                    startGame();
+                }
+            }, 1000);
+        };
+
+        // Socket events
+        if (appState.socket) {
+            // Handle data updates
+            appState.socket.on("data", (data) => {
+                console.log("Received data update:", data);
+
+                // Handle regular player updates
+                if (data && data.id) {
+                    const existingPlayer = connectedPlayers.get(data.id);
+                    if (!existingPlayer || !existingPlayer.timestamp || 
+                        (data.timestamp && data.timestamp > existingPlayer.timestamp)) {
+                        
+                        connectedPlayers.set(data.id, {
+                            name: data.name,
+                            ready: data.ready,
+                            status: data.status,
+                            timestamp: data.timestamp
+                        });
+                        updatePlayerList();
+                        
+                        // Check if we should start the game
+                        if (!gameStarting) {
+                            checkAndStartGame();
+                        }
+                    }
+                }
+            });
+
+            // Initial state setup
+            appState.socket.setProperties({
+                name: appState.playerName,
+                ready: false,
+                status: "waiting",
+                timestamp: Date.now()
+            });
+
+            // Handle new player joining
+            appState.socket.on("otherjoin", (data) => {
+                console.log("Other player joined:", data);
+                if (data && data.id) {
+                    // Send our current state to the new player
+                    appState.socket.setProperties({
+                        name: appState.playerName,
+                        ready: appState.isReady,
+                        status: appState.isReady ? "ready" : "waiting",
+                        timestamp: Date.now()
+                    });
+                }
+            });
+            
+            // Handle player leaving
+            appState.socket.on("otherleave", (data) => {
+                console.log("Other player left:", data);
+                if (data && data.id) {
+                    connectedPlayers.delete(data.id);
+                    updatePlayerList();
+                    
+                    // If game was about to start but someone left, cancel it
+                    if (gameStarting) {
+                        gameStarting = false;
+                        showRoomScreen(); // Reset the room screen
+                    }
+                }
+            });
         }
-        
-        // Display the result message
-        new Label({
-            text: resultMessage,
-            size: 18,
-            color: white,
-            align: CENTER,
-            lineHeight: 24
-        }).loc(0, -150, resultsScreen)//.outline();
-        
-        new Label({
-            text: `✅ Reps: ${appState.repCount}`,
-            size: 24,
-            color: white
-        }).loc(-80, 70,resultsScreen);
-        
-        new Label({
-            text: `🎯 Avg Tilt: ${appState.avgTilt.toFixed(1)}°`,
-            size: 24,
-            color: white
-        }).loc(-80, 20,resultsScreen);
-        
-        new Label({
-            text: `⚠️ Warnings: ${appState.warnings}`,
-            size: 24,
-            color: white
-        }).loc(-80, -30,resultsScreen);
-        
-        // Action buttons
-        new Button({
-            label:"RETRY",
-            width:150,
-            height:60,
-            backgroundColor:"#41B900",//green
-            rollBackgroundColor:"#388E3C",
-            corner:6
-        }).loc(-160, 200,resultsScreen)
+
+        // Ready button
+        const readyButton = new Button({
+            label: "READY",
+            width: 200,
+            height: 60,
+            backgroundColor: "#41B900",
+            rollBackgroundColor: "#388E3C",
+            corner: 10
+        }).loc(-100, 100, roomScreen)
         .on("click", function() {
-            resetGameState();
-            showScreen("game");
-            startGame();
+            if (appState.socket) {
+                appState.isReady = true;
+                appState.socket.setProperties({
+                    name: appState.playerName,
+                    ready: true,
+                    status: "ready",
+                    timestamp: Date.now()
+                });
+                this.alpha = 0.5;
+                this.enabled = false;
+                updatePlayerList();
+                checkAndStartGame();
+            }
         });
-        
+
+        // Back button
         new Button({
-            label:"HOME",
-            width:150,
-            height:60,
-            backgroundColor:"#BD00E3",//purple
-            rollBackgroundColor:"#8A00A3",//darker purple
-            corner:6
-        }).loc(20, 200, resultsScreen)
+            label: "BACK",
+            width: 200,
+            height: 60,
+            backgroundColor: "#FF6000",
+            rollBackgroundColor: "#CC4D00",
+            corner: 10
+        }).loc(-100, 200, roomScreen)
         .on("click", function() {
-            resetGameState();
+            if (appState.socket) {
+                appState.socket.dispose();
+                appState.socket = null;
+            }
+            appState.isReady = false;
+            gameStarting = false;  // Reset game starting flag
             showScreen("home");
         });
-    }
-    
-    // Helper functions
-    function showScreen(screenName) {
-        appState.screen = screenName;
-        homeScreen.vis(false);
-        gameScreen.vis(false);
-        resultsScreen.vis(false);
-        
-        if (screenName === "home") homeScreen.vis(true);
-        else if (screenName === "game") gameScreen.vis(true);
-        else if (screenName === "results") {
-            showResultsScreen();
-            resultsScreen.vis(true);
-        }
-        
-        S.update();
-    }
-    
-    function resetGameState() {
-        appState.repCount = 0;
-        appState.warnings = 0;
-        appState.tiltReadings = [];
-        appState.avgTilt = 0;
-        appState.gameConclusionType = "completed"; // Reset the conclusion type
-    }
-    
-    function startGame() {
-        // Clear game screen first
-        gameScreen.removeAllChildren();
-        
-        // Create countdown container
-        const countdownContainer = new Container().center(gameScreen);
-        const countdownLabel = new Label({
-            text: "3",
-            size: 100,
-            color: "#BD00E3", // purple
-            bold: true
-        }).center(countdownContainer);
-        
-        // Countdown animation
-        let count = 3;
-        const countdownInterval = setInterval(() => {
-            count--;
-            if (count > 0) {
-                countdownLabel.text = count;
-                // Add a scale animation effect
-                countdownLabel.animate({
-                    props: {scale:1.5},
-                    time: 200,
-                    rewind: true
-                });
-            } else {
-                clearInterval(countdownInterval);
-                countdownContainer.removeFrom(gameScreen);
-                // Start the actual game setup
-                setupTiltDetection();
-            }
-            S.update();
-        }, 1000);
+
+        updatePlayerList();
     }
     
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -511,6 +616,15 @@ function ready() {
             // Display tilt
             tiltDisplay.text = `Tilt: ${totalDeviation.toFixed(1)}°`;
             
+            // Sync data in multiplayer mode
+            if (appState.mode === "multiplayer" && appState.socket) {
+                appState.socket.setProperties({
+                    repCount: appState.repCount,
+                    warnings: appState.warnings,
+                    avgTilt: appState.avgTilt
+                });
+            }
+            
             // Update ring color and size
             if (totalDeviation > failureThreshold) {
                 ring.borderColor = "#ff0000"; // Red for severe tilt
@@ -631,6 +745,275 @@ function ready() {
             showScreen("results");
         });
     }
+
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+    // RESULTS SCREEN
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    function showResultsScreen() {
+        // Calculate average tilt
+        if (appState.tiltReadings.length > 0) {
+            appState.avgTilt = appState.tiltReadings.reduce((a, b) => a + b, 0) / appState.tiltReadings.length;
+        }
+        
+        resultsScreen.removeAllChildren();
+        
+        if (appState.mode === "multiplayer" && appState.socket) {
+            // Track finished players
+            const finishedPlayers = new Map();
+            let expectedPlayers = 0;
+
+            // Add our score
+            finishedPlayers.set(appState.socket.id, {
+                name: appState.playerName,
+                reps: appState.repCount
+            });
+
+            // Get current players count from socket data
+            const currentData = appState.socket.data || {};
+            expectedPlayers = Object.keys(currentData).length + 1; // +1 for current player
+
+            // Send our final score
+            appState.socket.setProperties({
+                name: appState.playerName,
+                reps: appState.repCount,
+                finished: true,
+                timestamp: Date.now()
+            });
+
+            // Create waiting message
+            const waitingLabel = new Label({
+                text: "Waiting for other players...",
+                size: 24,
+                color: white,
+                align: CENTER
+            }).center(resultsScreen);
+
+            // Function to show final results
+            const showFinalResults = () => {
+                resultsScreen.removeAllChildren();
+
+                // Show player name
+                new Label({
+                    text: appState.playerName,
+                    size: 36,
+                    color: white,
+                    bold: true
+                }).pos(0, -220, CENTER, CENTER, resultsScreen);
+
+                // Convert finished players to array and sort by reps
+                const players = Array.from(finishedPlayers.values());
+                players.sort((a, b) => b.reps - a.reps);
+
+                // Find player's rank
+                const playerRank = players.findIndex(p => p.name === appState.playerName) + 1;
+                const totalPlayers = players.length;
+
+                // Show rank
+                new Label({
+                    text: `Your Rank: ${playerRank} of ${totalPlayers}`,
+                    size: 24,
+                    color: white,
+                    align: CENTER
+                }).loc(0, -150, resultsScreen);
+
+                // Show all players' scores
+                let yPos = -50;
+                players.forEach((player, index) => {
+                    const isCurrentPlayer = player.name === appState.playerName;
+                    new Label({
+                        text: `${index + 1}. ${player.name}: ${player.reps} reps`,
+                        size: 24,
+                        color: isCurrentPlayer ? "#41B900" : white,
+                        bold: isCurrentPlayer
+                    }).loc(0, yPos, resultsScreen);
+                    yPos += 40;
+                });
+
+                // Action buttons
+                new Button({
+                    label: "RETRY",
+                    width: 150,
+                    height: 60,
+                    backgroundColor: "#41B900",
+                    rollBackgroundColor: "#388E3C",
+                    corner: 6
+                }).loc(-160, 200, resultsScreen)
+                .on("click", function() {
+                    showRoomScreen();
+                });
+
+                new Button({
+                    label: "HOME",
+                    width: 150,
+                    height: 60,
+                    backgroundColor: "#BD00E3",
+                    rollBackgroundColor: "#8A00A3",
+                    corner: 6
+                }).loc(20, 200, resultsScreen)
+                .on("click", function() {
+                    if (appState.socket) {
+                        appState.socket.dispose();
+                        appState.socket = null;
+                    }
+                    resetGameState();
+                    showScreen("home");
+                });
+            };
+
+            // Check if we already have all players' data
+            Object.entries(currentData).forEach(([id, data]) => {
+                if (data.finished) {
+                    finishedPlayers.set(id, {
+                        name: data.name,
+                        reps: data.reps
+                    });
+                }
+            });
+
+            // If we already have all players, show results immediately
+            if (finishedPlayers.size >= expectedPlayers) {
+                showFinalResults();
+            }
+
+            // Listen for other players' results
+            appState.socket.on("data", (data) => {
+                if (data && data.id && data.finished) {
+                    finishedPlayers.set(data.id, {
+                        name: data.name,
+                        reps: data.reps
+                    });
+
+                    // Show results when all players have finished
+                    if (finishedPlayers.size >= expectedPlayers) {
+                        showFinalResults();
+                    }
+                }
+            });
+
+        } else {
+            // Solo mode results (unchanged)
+            new Label({
+                text: appState.playerName,
+                size: 36,
+                color: white,
+                bold: true
+            }).pos(0, -220, CENTER, CENTER, resultsScreen);
+
+            let resultMessage = "";
+            if (appState.warnings > 3) {
+                resultMessage = "⚠️ Keep practicing and try again!";
+            } else {
+                resultMessage = "🎉 Nice work!\nYou kept your balance and finished strong!";
+            }
+
+            new Label({
+                text: resultMessage,
+                size: 24,
+                color: white,
+                align: CENTER,
+                lineHeight: 30
+            }).loc(0, -150, resultsScreen);
+
+            new Label({
+                text: `✅ Reps: ${appState.repCount}`,
+                size: 24,
+                color: white
+            }).loc(-80, 0, resultsScreen);
+
+            // Solo mode buttons (unchanged)
+            new Button({
+                label: "RETRY",
+                width: 150,
+                height: 60,
+                backgroundColor: "#41B900",
+                rollBackgroundColor: "#388E3C",
+                corner: 6
+            }).loc(-160, 200, resultsScreen)
+            .on("click", function() {
+                resetGameState();
+                showScreen("game");
+                startGame();
+            });
+
+            new Button({
+                label: "HOME",
+                width: 150,
+                height: 60,
+                backgroundColor: "#BD00E3",
+                rollBackgroundColor: "#8A00A3",
+                corner: 6
+            }).loc(20, 200, resultsScreen)
+            .on("click", function() {
+                resetGameState();
+                showScreen("home");
+            });
+        }
+    }
+    
+    // Helper functions
+    function showScreen(screenName) {
+        appState.screen = screenName;
+        homeScreen.vis(false);
+        gameScreen.vis(false);
+        resultsScreen.vis(false);
+        aboutScreen.vis(false);
+        roomScreen.vis(false);
+        
+        if (screenName === "home") homeScreen.vis(true);
+        else if (screenName === "game") gameScreen.vis(true);
+        else if (screenName === "results") {
+            showResultsScreen();
+            resultsScreen.vis(true);
+        } else if (screenName === "room") {
+            roomScreen.vis(true);
+        }
+        
+        S.update();
+    }
+    
+    function resetGameState() {
+        appState.repCount = 0;
+        appState.warnings = 0;
+        appState.tiltReadings = [];
+        appState.avgTilt = 0;
+        appState.gameConclusionType = "completed"; // Reset the conclusion type
+    }
+    
+    function startGame() {
+        // Clear game screen first
+        gameScreen.removeAllChildren();
+        
+        // Create countdown container
+        const countdownContainer = new Container().center(gameScreen);
+        const countdownLabel = new Label({
+            text: "3",
+            size: 100,
+            color: "#BD00E3", // purple
+            bold: true
+        }).center(countdownContainer);
+        
+        // Countdown animation
+        let count = 3;
+        const countdownInterval = setInterval(() => {
+            count--;
+            if (count > 0) {
+                countdownLabel.text = count;
+                // Add a scale animation effect
+                countdownLabel.animate({
+                    props: {scale:1.5},
+                    time: 200,
+                    rewind: true
+                });
+            } else {
+                clearInterval(countdownInterval);
+                countdownContainer.removeFrom(gameScreen);
+                // Start the actual game setup
+                setupTiltDetection();
+            }
+            S.update();
+        }, 1000);
+    }
     
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // ABOUT SCREEN
@@ -713,7 +1096,7 @@ function ready() {
         // Open GitHub repository in a new tab
         window.open("https://github.com/yiyuke/ZIM-FitPulse", "_blank");
     });
-    
+
     // Start with home screen
     showScreen("home");
 }
