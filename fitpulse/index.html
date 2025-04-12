@@ -301,7 +301,6 @@ function ready() {
                     yPos += 40;
                 }
             });
-            
             S.update();
         };
 
@@ -687,7 +686,15 @@ function ready() {
             window.removeEventListener("deviceorientation", handleOrientation);
             appState.gameConclusionType = "quit"; // Set the conclusion type
             resetGameState();
-            showScreen("home");
+            if (appState.mode === "multiplayer" && appState.socket) {
+                appState.socket.dispose();
+                appState.socket = null;
+                appState.isReady = false;
+                showScreen("room");
+            } else {
+                showScreen("home");
+            }
+            S.update();
         });
         
         // Add a finish button to end the game early
@@ -703,7 +710,18 @@ function ready() {
             clearInterval(timerInterval);
             window.removeEventListener("deviceorientation", handleOrientation);
             appState.gameConclusionType = "finished"; // Set the conclusion type
-            showScreen("results");
+            if (appState.mode === "multiplayer" && appState.socket) {
+                appState.socket.setProperties({
+                    name: appState.playerName,
+                    reps: appState.repCount,
+                    finished: true,
+                    timestamp: Date.now()
+                });
+                showScreen("results");
+            } else {
+                showScreen("results");
+            }
+            S.update();
         });
     }
 
@@ -809,40 +827,30 @@ function ready() {
                     S.update();
                 });
 
-                // Action buttons
-                new Button({
-                    label: "RETRY",
-                    width: 150,
-                    height: 60,
-                    backgroundColor: "#41B900",
-                    rollBackgroundColor: "#388E3C",
-                    corner: 6
-                }).loc(-160, 200, resultsScreen)
-                .on("click", function() {
-                    showScreen("room");
-                });
-
-                new Button({
-                    label: "HOME",
-                    width: 150,
-                    height: 60,
-                    backgroundColor: "#BD00E3",
-                    rollBackgroundColor: "#8A00A3",
-                    corner: 6
-                }).loc(20, 200, resultsScreen)
-                .on("click", function() {
-                    if (appState.socket) {
-                        appState.socket.dispose();
-                        appState.socket = null;
-                    }
-                    resetGameState();
-                    showScreen("home");
-                });
-                S.update();
+                // Remove retry and home buttons in multiplayer mode
+                if (appState.mode === "multiplayer") {
+                    // Only allow navigation using the nav footer
+                    S.update();
+                } else {
+                    // Solo mode buttons
+                    new Button({
+                        label: "RETRY",
+                        width: 150,
+                        height: 60,
+                        backgroundColor: "#41B900",
+                        rollBackgroundColor: "#388E3C",
+                        corner: 6
+                    }).loc(-160, 200, resultsScreen)
+                    .on("click", function() {
+                        resetGameState();
+                        showScreen("game");
+                        startGame();
+                    });
+                }
             };
 
         } else {
-            // Solo mode results (unchanged)
+            // Solo mode results
             new Label({
                 text: appState.playerName,
                 size: 36,
@@ -875,7 +883,7 @@ function ready() {
                 color: white
             }).loc(-80, 0, resultsScreen);
 
-            // Solo mode buttons (unchanged)
+            // Solo mode buttons
             new Button({
                 label: "RETRY",
                 width: 150,
@@ -888,19 +896,6 @@ function ready() {
                 resetGameState();
                 showScreen("game");
                 startGame();
-            });
-
-            new Button({
-                label: "HOME",
-                width: 150,
-                height: 60,
-                backgroundColor: "#BD00E3",
-                rollBackgroundColor: "#8A00A3",
-                corner: 6
-            }).loc(20, 200, resultsScreen)
-            .on("click", function() {
-                resetGameState();
-                showScreen("home");
             });
         }
     }
@@ -932,6 +927,11 @@ function ready() {
         appState.tiltReadings = [];
         appState.avgTilt = 0;
         appState.gameConclusionType = "completed"; // Reset the conclusion type
+        if (appState.socket) {
+            appState.socket.dispose();
+            appState.socket = null;
+        }
+        appState.isReady = false;
     }
     
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
