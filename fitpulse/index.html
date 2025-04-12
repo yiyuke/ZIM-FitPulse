@@ -169,7 +169,7 @@ function ready() {
     .on("click", function() {
         if (appState.mode === "multiplayer") {
             try {
-                // Initialize socket with correct format based on documentation
+                // Initialize socket
                 appState.socket = new zim.Socket(
                     zimSocketURL,      // server
                     "fitpulse",        // appName
@@ -327,49 +327,10 @@ function ready() {
 
             // Start game only if we have at least 2 players and all are ready
             if (allReady && validPlayers >= 2) {
-                startCountdown();
+                showScreen("game");
+                startGame();
+                gameStarting = true;
             }
-        };
-
-        const startCountdown = () => {
-            if (gameStarting) return;
-            gameStarting = true;
-
-            // Clear existing content
-            roomScreen.removeAllChildren();
-
-            // Recreate room header
-            new Label({
-                text: "Waiting Room",
-                size: 36,
-                color: white,
-                bold: true
-            }).loc(-110, -260, roomScreen);
-
-            // Create countdown display
-            const countdownLabel = new Label({
-                text: "Starting in 3...",
-                size: 48,
-                color: "#41B900",
-                bold: true
-            }).center(roomScreen);
-
-            let count = 3;
-            console.log("Starting countdown");
-
-            const countInterval = setInterval(() => {
-                count--;
-                console.log("Countdown:", count);
-                
-                if (count > 0) {
-                    countdownLabel.text = `Starting in ${count}...`;
-                    S.update();
-                } else {
-                    clearInterval(countInterval);
-                    showScreen("game");
-                    startGame();
-                }
-            }, 1000);
         };
 
         // Socket events
@@ -789,10 +750,27 @@ function ready() {
                 align: CENTER
             }).center(resultsScreen);
 
+            // Listen for other players' results
+            appState.socket.on("data", (data) => {
+                if (data && data.id && data.finished) {
+                    finishedPlayers.set(data.id, {
+                        name: data.name,
+                        reps: data.reps
+                    });
+
+                    console.log("Updated finishedPlayers:", Array.from(finishedPlayers.entries()));
+
+                    // Show results when all players have finished
+                    if (finishedPlayers.size >= expectedPlayers) {
+                        showFinalResults();
+                    }
+                }
+            });
+
             // Function to show final results
             const showFinalResults = () => {
                 resultsScreen.removeAllChildren();
-
+                S.update();
                 // Show player name
                 new Label({
                     text: appState.playerName,
@@ -828,6 +806,7 @@ function ready() {
                         bold: isCurrentPlayer
                     }).loc(0, yPos, resultsScreen);
                     yPos += 40;
+                    S.update();
                 });
 
                 // Action buttons
@@ -840,7 +819,7 @@ function ready() {
                     corner: 6
                 }).loc(-160, 200, resultsScreen)
                 .on("click", function() {
-                    showRoomScreen();
+                    showScreen("room");
                 });
 
                 new Button({
@@ -859,37 +838,8 @@ function ready() {
                     resetGameState();
                     showScreen("home");
                 });
+                S.update();
             };
-
-            // Check if we already have all players' data
-            Object.entries(currentData).forEach(([id, data]) => {
-                if (data.finished) {
-                    finishedPlayers.set(id, {
-                        name: data.name,
-                        reps: data.reps
-                    });
-                }
-            });
-
-            // If we already have all players, show results immediately
-            if (finishedPlayers.size >= expectedPlayers) {
-                showFinalResults();
-            }
-
-            // Listen for other players' results
-            appState.socket.on("data", (data) => {
-                if (data && data.id && data.finished) {
-                    finishedPlayers.set(data.id, {
-                        name: data.name,
-                        reps: data.reps
-                    });
-
-                    // Show results when all players have finished
-                    if (finishedPlayers.size >= expectedPlayers) {
-                        showFinalResults();
-                    }
-                }
-            });
 
         } else {
             // Solo mode results (unchanged)
@@ -901,9 +851,13 @@ function ready() {
             }).pos(0, -220, CENTER, CENTER, resultsScreen);
 
             let resultMessage = "";
-            if (appState.warnings > 3) {
-                resultMessage = "⚠️ Keep practicing and try again!";
-            } else {
+            if (appState.gameConclusionType === "quit") {
+                 resultMessage = "👋 Session ended early.\nCome back when you're ready to try again!";
+             } else if (appState.gameConclusionType === "finished") {
+                 resultMessage = "⏱️ Early finish!\nGood effort on your workout today.";
+             } else if (appState.warnings > 3) {
+                 resultMessage = "⚠️ Oops!\nYou lost balance too many times.";
+             } else {
                 resultMessage = "🎉 Nice work!\nYou kept your balance and finished strong!";
             }
 
@@ -980,6 +934,9 @@ function ready() {
         appState.gameConclusionType = "completed"; // Reset the conclusion type
     }
     
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // GAME COUNTDOWN SCREEN
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     function startGame() {
         // Clear game screen first
         gameScreen.removeAllChildren();
