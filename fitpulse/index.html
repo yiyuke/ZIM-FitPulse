@@ -167,52 +167,94 @@ function ready() {
         corner:10
     }).loc(-114, 200, homeScreen)
     .on("click", function() {
-        if (appState.mode === "multiplayer") {
-            try {
-                // Initialize socket
-                appState.socket = new zim.Socket(
-                    zimSocketURL,      // server
-                    "fitpulse",        // appName
-                    "room1",           // roomName
-                    4,                 // maxPeople
-                    true              // fill
-                );
+        // Request device orientation permission first before proceeding with any game mode
+        function requestOrientationPermission() {
+            return new Promise((resolve) => {
+                if (typeof DeviceOrientationEvent !== 'undefined' && 
+                    typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    // iOS 13+ requires permission
+                    DeviceOrientationEvent.requestPermission()
+                        .then(permissionState => {
+                            if (permissionState === 'granted') {
+                                console.log('Device orientation permission granted.');
+                                resolve(true);
+                            } else {
+                                console.log('Device orientation permission denied.');
+                                resolve(false);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error requesting device orientation permission:', error);
+                            resolve(false);
+                        });
+                } else {
+                    // Non iOS 13+ devices don't need permission
+                    console.log('Device orientation permission not required for this device.');
+                    resolve(true);
+                }
+            });
+        }
 
-                // Handle socket ready event
-                appState.socket.on("ready", () => {
-                    console.log("Socket ready, connected as:", appState.socket.id);
-                    // Send initial player data using setProperties
-                    appState.socket.setProperties({
-                        name: appState.playerName,
-                        ready: false,
-                        reps: 0,
-                        status: "waiting"
+        // Request permission and proceed with the game mode after permission is handled
+        requestOrientationPermission().then(permissionGranted => {
+            if (!permissionGranted) {
+                new Pane({
+                    label: "Device orientation permission is required to play this game.",
+                    backgroundColor: dark,
+                    color: white,
+                    modal: true
+                }).show();
+                return;
+            }
+            
+            // Continue with original game mode selection flow
+            if (appState.mode === "multiplayer") {
+                try {
+                    // Initialize socket
+                    appState.socket = new zim.Socket(
+                        zimSocketURL,      // server
+                        "fitpulse",        // appName
+                        "room1",           // roomName
+                        4,                 // maxPeople
+                        true              // fill
+                    );
+
+                    // Handle socket ready event
+                    appState.socket.on("ready", () => {
+                        console.log("Socket ready, connected as:", appState.socket.id);
+                        // Send initial player data using setProperties
+                        appState.socket.setProperties({
+                            name: appState.playerName,
+                            ready: false,
+                            reps: 0,
+                            status: "waiting"
+                        });
+                        showRoomScreen();
                     });
-                    showRoomScreen();
-                });
 
-                // Handle socket error
-                appState.socket.on("error", (error) => {
-                    console.error("Socket error:", error);
-                    new Pane({
-                        label: "Could not connect to multiplayer server",
-                        backgroundColor: dark,
-                        color: white,
-                        modal: true
-                    }).show();
+                    // Handle socket error
+                    appState.socket.on("error", (error) => {
+                        console.error("Socket error:", error);
+                        new Pane({
+                            label: "Could not connect to multiplayer server",
+                            backgroundColor: dark,
+                            color: white,
+                            modal: true
+                        }).show();
+                        appState.mode = "solo";
+                        modeRadio.selectedIndex = 0;
+                    });
+
+                } catch (e) {
+                    console.error("Socket initialization error:", e);
                     appState.mode = "solo";
                     modeRadio.selectedIndex = 0;
-                });
-
-            } catch (e) {
-                console.error("Socket initialization error:", e);
-                appState.mode = "solo";
-                modeRadio.selectedIndex = 0;
+                }
+            } else {
+                showScreen("game");
+                startGame();
             }
-        } else {
-            showScreen("game");
-            startGame();
-        }
+        });
     });
 
     // ---------------- Nav Footer -----------------
@@ -560,25 +602,9 @@ function ready() {
             S.update();
         }, 1000);
         
-        // Request permission for device orientation
-        if (typeof DeviceOrientationEvent !== 'undefined' && 
-            typeof DeviceOrientationEvent.requestPermission === 'function') {
-            // iOS 13+ requires permission
-            DeviceOrientationEvent.requestPermission()
-                .then(permissionState => {
-                    if (permissionState === 'granted') {
-                        console.log('Device orientation permission granted.');
-                        window.addEventListener('deviceorientation', handleOrientation);
-                    } else {
-                        console.log('Device orientation permission denied.');
-                    }
-                })
-                .catch(console.error);
-        } else {
-            // Non iOS 13+ devices
-            console.log('Adding deviceorientation event listener for non-iOS devices.');
-            window.addEventListener('deviceorientation', handleOrientation);
-        }
+        // Add device orientation listener directly since permission was already granted
+        console.log('Adding deviceorientation event listener...');
+        window.addEventListener('deviceorientation', handleOrientation);
         
         // Device orientation handler
         function handleOrientation(event) {
