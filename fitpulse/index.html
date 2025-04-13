@@ -807,16 +807,35 @@ function ready() {
             // Listen for other players' results
             appState.socket.on("data", (data) => {
                 if (data && data.id && data.finished) {
+                    console.log("Player finished:", data.name);
+                    
                     finishedPlayers.set(data.id, {
                         name: data.name,
                         reps: data.reps
                     });
-
-                    // Show results when all players have finished
-                    if (finishedPlayers.size >= expectedPlayers) {
+                    
+                    // Check if all players have finished
+                    const allFinished = finishedPlayers.size >= expectedPlayers;
+                    
+                    // If we're the last to finish, broadcast a completed event
+                    if (allFinished) {
+                        console.log("All players have finished!");
+                        appState.socket.setProperties({
+                            name: appState.playerName,
+                            reps: appState.repCount,
+                            finished: true,
+                            allCompleted: true,
+                            timestamp: Date.now()
+                        });
                         showFinalResults();
-                        S.update();
+                    } 
+                    // If another player has indicated all are complete
+                    else if (data.allCompleted) {
+                        console.log("Received completion notification");
+                        showFinalResults();
                     }
+                    
+                    S.update();
                 }
             });
 
@@ -877,6 +896,15 @@ function ready() {
                     S.update();
                 });
             };
+
+            // Set a timeout to force show final results after 10 seconds
+            // This ensures the last player also sees results
+            setTimeout(() => {
+                if (resultsScreen.numChildren <= 1) {  // If still showing waiting screen
+                    console.log("Forcing results display after timeout");
+                    showFinalResults();
+                }
+            }, 10000);
 
         } else {
             // Solo mode results
