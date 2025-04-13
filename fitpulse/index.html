@@ -560,8 +560,29 @@ function ready() {
             S.update();
         }, 1000);
         
+        // Request permission for device orientation
+        if (typeof DeviceOrientationEvent !== 'undefined' && 
+            typeof DeviceOrientationEvent.requestPermission === 'function') {
+            // iOS 13+ requires permission
+            DeviceOrientationEvent.requestPermission()
+                .then(permissionState => {
+                    if (permissionState === 'granted') {
+                        console.log('Device orientation permission granted.');
+                        window.addEventListener('deviceorientation', handleOrientation);
+                    } else {
+                        console.log('Device orientation permission denied.');
+                    }
+                })
+                .catch(console.error);
+        } else {
+            // Non iOS 13+ devices
+            console.log('Adding deviceorientation event listener for non-iOS devices.');
+            window.addEventListener('deviceorientation', handleOrientation);
+        }
+        
         // Device orientation handler
         function handleOrientation(event) {
+            console.log('Device orientation event:', event);
             // Get rotation values
             const beta = event.beta || 0;  // x-axis rotation (-180 to 180)
             const gamma = event.gamma || 0; // y-axis rotation (-90 to 90)
@@ -607,6 +628,7 @@ function ready() {
                         // Game over due to excessive warnings
                         clearInterval(timerInterval);
                         window.removeEventListener("deviceorientation", handleOrientation);
+                        appState.gameConclusionType = "failed"; // Mark as failed
                         showScreen("results");
                     }
                     
@@ -653,22 +675,6 @@ function ready() {
             }
             
             S.update();
-        }
-        
-        // Request permission for device orientation
-        if (typeof DeviceOrientationEvent !== 'undefined' && 
-            typeof DeviceOrientationEvent.requestPermission === 'function') {
-            // iOS 13+ requires permission
-            DeviceOrientationEvent.requestPermission()
-                .then(permissionState => {
-                    if (permissionState === 'granted') {
-                        window.addEventListener('deviceorientation', handleOrientation);
-                    }
-                })
-                .catch(console.error);
-        } else {
-            // Non iOS 13+ devices
-            window.addEventListener('deviceorientation', handleOrientation);
         }
         
         // Add control buttons at the bottom
@@ -808,17 +814,11 @@ function ready() {
                 const playerRank = players.findIndex(p => p.name === appState.playerName) + 1;
                 const totalPlayers = players.length;
 
-                // // Show rank
-                // new Label({
-                //     text: `🏅Your Rank: ${playerRank} of ${totalPlayers}`,
-                //     size: 24,
-                //     color: white,
-                //     align: CENTER
-                // }).loc(0, -150, resultsScreen);
-
-                // Add personalized rank message
+                // Show rank or failure message
                 let resultMessage = "";
-                if (playerRank === 1) {
+                if (appState.gameConclusionType === "failed") {
+                    resultMessage = "❌ You were weeded out due to excessive warnings.";
+                } else if (playerRank === 1) {
                     resultMessage = "🥇 You're the Champion!\nOutstanding performance!";
                 } else if (playerRank === 2) {
                     resultMessage = "🥈 Great job!\nYou came in 2nd place!";
