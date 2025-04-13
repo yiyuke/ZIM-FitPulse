@@ -202,7 +202,6 @@ function ready() {
                     label: "Device orientation permission is required to play this game.",
                     backgroundColor: dark,
                     color: white,
-                    modal: true
                 }).show();
                 return;
             }
@@ -862,7 +861,7 @@ function ready() {
                 // Show rank or failure message
                 let resultMessage = "";
                 if (appState.gameConclusionType === "failed") {
-                    resultMessage = "❌ You were weeded out due to excessive warnings.";
+                    resultMessage = "❌ You were weeded out.\nDue to excessive warnings.";
                 } else if (playerRank === 1) {
                     resultMessage = "🥇 You're the Champion!\nOutstanding performance!";
                 } else if (playerRank === 2) {
