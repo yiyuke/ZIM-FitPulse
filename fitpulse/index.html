@@ -62,23 +62,6 @@ function ready() {
         success: new Aud("success.mp3"),
         countdown: new Aud("countdown.mp3")
     };
-    
-    // Flag to track if audio is initialized
-    let audioInitialized = false;
-    
-    // Function to initialize audio - must be called from a user gesture
-    function initAudio() {
-        if (audioInitialized) return;
-        
-        // Play and immediately stop a sound to initialize audio context
-        const sound = sounds.rep.play({volume: 0.01});
-        if (sound && sound.stop) {
-            sound.stop();
-        }
-        
-        console.log("Audio initialized");
-        audioInitialized = true;
-    }
 
     // Create app state
     let appState = {
@@ -193,9 +176,6 @@ function ready() {
         corner:10
     }).loc(-114, 200, homeScreen)
     .on("click", function() {
-        // Initialize audio on first user interaction
-        initAudio();
-        
         // Request device orientation permission first before proceeding with any game mode
         function requestOrientationPermission() {
             return new Promise((resolve) => {
@@ -590,10 +570,8 @@ function ready() {
                 rewind: true
             });
             
-            // Play rep sound if audio is initialized
-            if (audioInitialized) {
-                sounds.rep.play();
-            }
+            // Play rep sound
+            sounds.rep.play();
             
             S.update();
         });
@@ -683,10 +661,8 @@ function ready() {
                     warningActive = true;
                     appState.warnings++;
                     
-                    // Play warning sound if audio is initialized
-                    if (audioInitialized) {
-                        sounds.warning.play();
-                    }
+                    // Play warning sound
+                    sounds.warning.play();
                     
                     // Vibrate if supported
                     if (navigator.vibrate) {
@@ -740,10 +716,8 @@ function ready() {
                 repLabel.text = `Reps: ${appState.repCount}`;
                 countButton.text = `Count: ${appState.repCount}`;
                 
-                // Play rep sound if audio is initialized
-                if (audioInitialized) {
-                    sounds.rep.play();
-                }
+                // Play rep sound
+                sounds.rep.play();
                 
                 // Provide feedback
                 if (navigator.vibrate) {
@@ -1077,16 +1051,14 @@ function ready() {
             bold: true
         }).center(countdownContainer);
         
-        // Play initial countdown sound (with check to make sure audio is initialized)
-        if (audioInitialized) {
-            sounds.countdown.play();
-        }
+        // Play initial countdown sound
+        sounds.countdown.play();
         
         // Countdown animation
         let count = 3;
         const countdownInterval = setInterval(() => {
             count--;
-            if (count > 0) {
+            if (count > 0) {             
                 countdownLabel.text = count;
                 // Add a scale animation effect
                 countdownLabel.animate({
@@ -1096,7 +1068,7 @@ function ready() {
                 });
             } else {
                 clearInterval(countdownInterval);
-                countdownContainer.removeFrom(gameScreen);
+                countdownContainer.removeFrom(gameScreen)
                 // Start the actual game setup
                 setupTiltDetection();
             }
@@ -1214,7 +1186,7 @@ function ready() {
         size: 32,
         color: white,
         bold: true
-    }).centerReg().loc(0, 80, profileContainer);
+    }).centerReg().loc(0, 70, profileContainer);
     
     // Stats header
     new Label({
