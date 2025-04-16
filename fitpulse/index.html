@@ -76,6 +76,7 @@ function ready() {
     const resultsScreen = new Container().center().vis(false);
     const aboutScreen = new Container().center().vis(false);
     const roomScreen = new Container().center().vis(false);
+    const youScreen = new Container().center().vis(false); // New YOU screen container
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // HOME SCREEN
@@ -269,6 +270,7 @@ function ready() {
         gameScreen.vis(false);
         resultsScreen.vis(false);
         aboutScreen.vis(true);
+        youScreen.vis(false);
         S.update();
     });
 
@@ -282,6 +284,7 @@ function ready() {
         resetGameState();
         showScreen("home");
         aboutScreen.vis(false);
+        youScreen.vis(false);
         S.update();
     });
 
@@ -294,6 +297,9 @@ function ready() {
     .on("click",function() {
         showScreen("you");
         aboutScreen.vis(false);
+        homeScreen.vis(false);
+        gameScreen.vis(false);
+        resultsScreen.vis(false);
         S.update();
     });
 
@@ -976,6 +982,7 @@ function ready() {
         resultsScreen.vis(false);
         aboutScreen.vis(false);
         roomScreen.vis(false);
+        youScreen.vis(false); // Hide YOU screen by default
         
         if (screenName === "home") homeScreen.vis(true);
         else if (screenName === "game") gameScreen.vis(true);
@@ -984,6 +991,8 @@ function ready() {
             resultsScreen.vis(true);
         } else if (screenName === "room") {
             roomScreen.vis(true);
+        } else if (screenName === "you") { // Handle YOU screen
+            youScreen.vis(true);
         }
         
         S.update();
@@ -1122,6 +1131,90 @@ function ready() {
         // Open GitHub repository in a new tab
         window.open("https://github.com/yiyuke/ZIM-FitPulse", "_blank");
     });
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // YOU SCREEN
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // TODO: Future enhancement - Replace hardcoded user data with database integration
+    // This is currently using static data as a placeholder until backend integration is implemented
+    
+    // Profile section
+    const profileContainer = new Container().loc(0, -240, youScreen);
+    
+    // Avatar placeholder - circular shape
+    const avatar = new Circle({
+        radius: 50,
+        color: "#995CA6", // dark purple
+    }).center(profileContainer).mov(0,30);
+    
+    // Default profile icon
+    new Label({
+        text: "👤",
+        size: 50,
+        color: white,
+    }).center(avatar);
+    
+    // Username (hardcoded for now)
+    new Label({
+        text: "Player1",
+        size: 32,
+        color: white,
+        bold: true
+    }).centerReg().loc(0, 106, profileContainer);
+    
+    // Stats header
+    new Label({
+        text: "Your Performance",
+        size: 24,
+        color: white,
+        bold: true
+    }).loc(-170, -76, youScreen);
+    
+    // Stats container
+    const statsContainer = new Container().loc(0, -20, youScreen);
+    
+    // Hardcoded stats (will be replaced with real data in future)
+    const statsData = [
+        {label: "Highest Rep Count", value: "24 reps", icon: "🏆"},
+        {label: "Average Tilt", value: "8.2°", icon: "📊"},
+        {label: "Total Sessions", value: "17", icon: "🔄"},
+        {label: "Best Time", value: "60s", icon: "⏱️"}
+    ];
+    
+    let statsYPos = 0;
+    statsData.forEach((stat, index) => {
+        const statItem = new Container().loc(-170, statsYPos, statsContainer);
+        
+        new Label({
+            text: stat.icon,
+            size: 24,
+            color: white
+        }).loc(0, 0, statItem);
+        
+        new Label({
+            text: stat.label,
+            size: 20,
+            color: white
+        }).loc(40, 0, statItem);
+        
+        new Label({
+            text: stat.value,
+            size: 20,
+            color: "#BD00E3", // purple
+            bold: true
+        }).loc(270, 0, statItem);
+        
+        statsYPos += 50;
+    });
+    
+    // Notification about database connection
+    new Label({
+        text: "💡 Future Enhancement: Your real stats will be saved and\nsynced across devices when you create an account.",
+        size: 14,
+        color: light,
+        align: CENTER,
+        lineHeight: 20
+    }).loc(0, 180, youScreen);
 
     // Start with home screen
     showScreen("home");
