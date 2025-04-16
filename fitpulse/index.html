@@ -890,13 +890,10 @@ function ready() {
                     resultMessage = "❌ You were weeded out.\nDue to excessive warnings.";
                 } else if (playerRank === 1) {
                     resultMessage = "🥇 You're the Champion!\nOutstanding performance!";
-                    sounds.success.play();
                 } else if (playerRank === 2) {
                     resultMessage = "🥈 Great job!\nYou came in 2nd place!";
-                    sounds.success.play();
                 } else if (playerRank === 3) {
                     resultMessage = "🥉 Nice try!\nYou placed 3rd.\nKeep improving!";
-                    sounds.success.play();
                 } else {
                     resultMessage = `🏅 You placed #${playerRank}.\nStay steady and come back stronger!`;
                 }
@@ -919,7 +916,7 @@ function ready() {
                         color: isCurrentPlayer ? "#BD00E3" : white,
                         bold: isCurrentPlayer,
                         lineHeight: 30
-                    }).loc(-66, yPos, resultsScreen);
+                    }).centerReg().loc(-66, yPos, resultsScreen);
                     yPos += 40;
                     S.update();
                 });
